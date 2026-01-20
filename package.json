@@ -1,0 +1,22 @@
+{
+  "name": "contexty",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist",
+    "test": "bun test",
+    "lint": "bun --check src/index.ts src/modules/hscmm.ts src/tui.ts",
+    "format": "bunx prettier --write src",
+    "tui": "bun run src/tui.ts"
+  },
+  "dependencies": {
+    "@opencode-ai/plugin": "latest",
+    "zod": "^3.22.0",
+    "blessed": "^0.1.81"
+  },
+  "devDependencies": {
+    "bun-types": "latest",
+    "typescript": "^5.4.0"
+  }
+}

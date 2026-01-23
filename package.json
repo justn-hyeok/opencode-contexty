@@ -6,14 +6,11 @@
   "scripts": {
     "build": "bun build src/index.ts --outdir dist",
     "test": "bun test",
-    "lint": "bun --check src/index.ts src/modules/hscmm.ts src/tui.ts",
-    "format": "bunx prettier --write src",
-    "tui": "bun run src/tui.ts"
+    "lint": "bun --check src/index.ts",
+    "format": "bunx prettier --write src"
   },
   "dependencies": {
-    "@opencode-ai/plugin": "latest",
-    "zod": "^3.22.0",
-    "blessed": "^0.1.81"
+    "@opencode-ai/plugin": "latest"
   },
   "devDependencies": {
     "bun-types": "latest",

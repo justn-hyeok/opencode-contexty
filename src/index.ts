@@ -13,10 +13,10 @@ export const ContextyPlugin: Plugin = async ({ client, directory }) => {
 
   const defaultConfig: ContextyConfig = {
     aasm: {
+      enabled: true,
       mode: 'active',
       enableLinting: true,
       confidenceThreshold: 0.7,
-      llmLint: 'never',
     },
   };
 

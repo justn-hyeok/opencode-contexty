@@ -17,6 +17,10 @@ export function createAASMChatHook(aasm: AASMModule, client: OpencodeClient) {
       return;
     }
 
+    if (!aasm.isEnabled()) {
+      return;
+    }
+
     const textParts = output.parts.filter((p: any) => p.type === 'text');
 
     const userMessage = textParts

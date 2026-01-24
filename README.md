@@ -324,7 +324,6 @@ AI: "경고: main.ts에 모든 로직을 추가하는 것은 모놀리식 구조
     "mode": "active",
     "enableLinting": true,
     "confidenceThreshold": 0.7,
-    "llmLint": "always",
     "model": "claude-3-5-sonnet" // (선택사항) 특정 모델 강제 지정
   }
 }

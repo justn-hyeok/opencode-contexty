@@ -52,11 +52,6 @@ export interface IntentAnalysis {
 export type AgentMode = 'active' | 'passive';
 
 /**
- * LLM lint mode configuration
- */
-export type LLMLintMode = 'always' | 'never';
-
-/**
  * Subsession configuration for LLM calls
  */
 export interface SubsessionConfig {
@@ -89,14 +84,14 @@ export interface ContextyConfig {
   };
   /** AASM settings */
   aasm: {
+    /** Whether AASM is globally enabled */
+    enabled: boolean;
     /** Current agent mode */
     mode: AgentMode;
     /** Enable architecture linting */
     enableLinting: boolean;
     /** Confidence threshold for suggestions */
     confidenceThreshold: number;
-    /** LLM-based linting mode */
-    llmLint: LLMLintMode;
     /** LLM model for linting (optional) */
     model?: string;
   };

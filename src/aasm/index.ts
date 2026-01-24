@@ -102,7 +102,6 @@ export class AASMModule {
 
   /**
    * Set the OpenCode client for LLM-based linting.
-   * Must be called before using llmLint: 'always' mode.
    */
   setClient(client: OpencodeClient): void {
     this.client = client;
@@ -190,6 +189,10 @@ export class AASMModule {
         confidence: 1.0,
       },
     };
+  }
+
+  isEnabled(): boolean {
+    return this.config.enabled;
   }
 
   setMode(mode: AgentMode): void {

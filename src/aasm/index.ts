@@ -92,6 +92,7 @@ export class AASMModule {
 
   constructor(config: ContextyConfig, client?: OpencodeClient) {
     this.config = config.aasm;
+    console.log('AASM Config:', this.config);
     this.mode = config.aasm.mode;
     this.analyzer = new IntentAnalyzer();
 

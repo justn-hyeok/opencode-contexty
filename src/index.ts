@@ -1,6 +1,6 @@
 import type { Plugin } from '@opencode-ai/plugin';
 import * as path from 'path';
-import * as fs from 'fs';
+import * as fs from 'fs/promises';
 import { Logger } from './utils';
 import { AASMModule } from './aasm';
 import { createAASMChatHook, createHSCMMTransformHook } from './hooks';
@@ -24,8 +24,9 @@ export const ContextyPlugin: Plugin = async ({ client, directory }) => {
   const configPath = path.join(directory, 'contexty.config.json');
 
   try {
-    if (fs.existsSync(configPath)) {
-      const userConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    try {
+      await fs.access(configPath);
+      const userConfig = JSON.parse(await fs.readFile(configPath, 'utf-8'));
       config = {
         ...defaultConfig,
         aasm: { ...defaultConfig.aasm, ...userConfig.aasm },
@@ -33,9 +34,15 @@ export const ContextyPlugin: Plugin = async ({ client, directory }) => {
         hscmm: userConfig.hscmm,
         tls: userConfig.tls,
       };
+    } catch {
+      // Config file doesn't exist or is not accessible, ignore
     }
   } catch (error) {
-    Logger.warn(`Failed to load config from ${configPath}, using defaults.`);
+    Logger.warn(
+      `Failed to load config from ${configPath}: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
   }
 
   const aasm = new AASMModule(config, client);

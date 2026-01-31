@@ -7,7 +7,7 @@ import {
   AgentMode,
   SubsessionConfig,
 } from '../types';
-import { Logger } from '../utils';
+import { FileSystem, Logger } from '../utils';
 import { SubsessionHelper } from './SubsessionHelper';
 import { LLMLinter } from './LLMLinter';
 
@@ -89,11 +89,12 @@ export class AASMModule {
   private mode: AgentMode;
   private config: ContextyConfig['aasm'];
   private client: OpencodeClient | null = null;
+  private configPath: string | null = null;
 
-  constructor(config: ContextyConfig, client?: OpencodeClient) {
+  constructor(config: ContextyConfig, client?: OpencodeClient, configPath?: string) {
     this.config = config.aasm;
-    console.log('AASM Config:', this.config);
     this.mode = config.aasm.mode;
+    this.configPath = configPath || null;
     this.analyzer = new IntentAnalyzer();
 
     if (client) {
@@ -196,34 +197,76 @@ export class AASMModule {
     return this.config.enabled;
   }
 
-  setMode(mode: AgentMode): void {
+  async setMode(mode: AgentMode): Promise<void> {
     this.mode = mode;
     Logger.info(`AASM mode set to: ${mode}`);
+
+    // Persist to config file if path is available
+    if (this.configPath) {
+      try {
+        let currentConfig: any = {};
+        if (await FileSystem.exists(this.configPath)) {
+          currentConfig = await FileSystem.readJSON(this.configPath);
+        }
+        
+        currentConfig.aasm = {
+          ...(currentConfig.aasm || {}),
+          mode: mode
+        };
+        
+        await FileSystem.writeJSON(this.configPath, currentConfig);
+        Logger.debug(`Persisted AASM mode to ${this.configPath}`);
+      } catch (error) {
+        Logger.warn(`Failed to persist AASM mode: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
   }
 
   getMode(): AgentMode {
     return this.mode;
   }
 
+  getModelName(): string {
+    return this.config.model || 'default-model';
+  }
+
   async handleCommand(command: string): Promise<string> {
+    const showToast = async (title: string, message: string, variant: 'success' | 'warning' | 'info' | 'error') => {
+      if (this.client) {
+        await this.client.tui.showToast({
+          body: { title, message, variant, duration: 4000 },
+        });
+      }
+    };
+
     switch (command) {
       case 'active':
-        this.setMode('active');
+        await this.setMode('active');
+        await showToast('AASM: ACTIVE', 'Architecture supervision ENABLED', 'success');
         return '✅ AASM mode set to: ACTIVE (Architecture linting enabled)';
 
       case 'passive':
-        this.setMode('passive');
+        await this.setMode('passive');
+        await showToast('AASM: PASSIVE', 'Architecture supervision DISABLED', 'warning');
         return '✅ AASM mode set to: PASSIVE (No architecture linting)';
 
       case 'status':
+        const isEffectiveLinting = this.mode === 'active' && this.config.enableLinting;
+        const statusMsg = `Mode: ${this.mode.toUpperCase()}\nLinting: ${
+          isEffectiveLinting ? 'ON' : 'OFF'
+        }${this.mode === 'passive' ? ' (Passive Mode)' : ''}`;
+        
+        await showToast('AASM Status', statusMsg, 'info');
         return `
 AASM Status:
 - Mode: ${this.mode.toUpperCase()}
 - Linting Enabled: ${this.config.enableLinting ? 'Yes' : 'No'}
+- Effective State: ${isEffectiveLinting ? 'ACTIVE' : 'DISABLED'}
 - Confidence Threshold: ${this.config.confidenceThreshold}
 `;
 
       default:
+        await showToast('AASM Error', `Unknown command: ${command}`, 'error');
         return `❌ Unknown agent command: ${command}\n\nUsage: /agent <active|passive|status>`;
     }
   }

@@ -48,10 +48,51 @@ export function createAASMChatHook(aasm: AASMModule, client: OpencodeClient) {
 
     if (mode === 'passive') return;
 
-    const { approved, intent, lintResult, llmUsed, llmError } = await aasm.validateIntent(
-      userMessage,
-      input.sessionID
-    );
+    const loadingMessages = [
+      'Analyzing user intent...',
+      'Checking architectural integrity...',
+      'Scanning for monolithic patterns...',
+      'Validating against project conventions...',
+      'Consulting active agent...',
+    ];
+    const progressIcons = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+    let iconIndex = 0;
+    const modelName = aasm.getModelName();
+    
+    await client.tui.showToast({
+      body: {
+        title: `🧠 AASM Review (${modelName})`,
+        message: `${progressIcons[0]} Starting analysis...`,
+        variant: 'info',
+        duration: 20000, // Keep it visible during processing
+      },
+    });
+
+    const progressInterval = setInterval(() => {
+      iconIndex = (iconIndex + 1) % progressIcons.length;
+      const randomMsg = loadingMessages[Math.floor(Math.random() * loadingMessages.length)];
+      
+      client.tui.showToast({
+        body: {
+          title: `🧠 AASM Review (${modelName})`,
+          message: `${progressIcons[iconIndex]} ${randomMsg}`,
+          variant: 'info',
+          duration: 20000,
+        },
+      });
+    }, 500);
+
+    let result;
+    try {
+      result = await aasm.validateIntent(
+        userMessage,
+        input.sessionID
+      );
+    } finally {
+      clearInterval(progressInterval);
+    }
+
+    const { approved, intent, lintResult, llmUsed, llmError } = result;
 
     if (llmError) {
       await client.tui.showToast({
@@ -62,6 +103,18 @@ export function createAASMChatHook(aasm: AASMModule, client: OpencodeClient) {
           duration: 5000,
         },
       });
+    }
+
+    if (!llmError && lintResult.issues.length === 0) {
+      await client.tui.showToast({
+        body: {
+          title: `✅ AASM Approved`,
+          message: `Intent: ${intent.intentType} (Impact: ${intent.architecturalImpact})\nNo architectural issues detected.`,
+          variant: 'success',
+          duration: 3000,
+        },
+      });
+      return;
     }
 
     if (lintResult.issues.length > 0) {

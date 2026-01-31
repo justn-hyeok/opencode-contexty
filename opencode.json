@@ -1,4 +1,18 @@
 {
   "plugin": ["./dist/index.js"],
+  "command": {
+    "agent-active": {
+      "description": "Enable AASM active supervision",
+      "template": "Call the 'aasm' tool with argument { \"mode\": \"active\" }."
+    },
+    "agent-passive": {
+      "description": "Disable AASM supervision (passive mode)",
+      "template": "Call the 'aasm' tool with argument { \"mode\": \"passive\" }."
+    },
+    "agent-status": {
+      "description": "Check AASM status",
+      "template": "Call the 'aasm' tool with argument { \"mode\": \"status\" }."
+    }
+  },
   "$schema": "https://opencode.ai/config.json"
 }

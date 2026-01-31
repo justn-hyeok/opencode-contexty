@@ -45,11 +45,11 @@ export const ContextyPlugin: Plugin = async ({ client, directory }) => {
     );
   }
 
-  const aasm = new AASMModule(config, client);
+  const aasm = new AASMModule(config, client, configPath);
 
   return {
     tool: {
-      agent: createAgentTool(aasm),
+      aasm: createAgentTool(aasm),
     },
     'chat.message': createAASMChatHook(aasm, client),
     'experimental.chat.messages.transform': createHSCMMTransformHook(directory),

@@ -41,7 +41,8 @@ export class TLSModule {
 
   createTemplate(result: TLSResult): string {
     return (
-`Print the text exactly as it is, up until the <tls-output-end> tag.
+`Provide the verbatim content located after <tls-output-start> and before <tls-output-end>. Do not modify any characters.
+<tls-output-start>
 ----------------------------------------------------
 ${result.command}
 ----------------------------------------------------

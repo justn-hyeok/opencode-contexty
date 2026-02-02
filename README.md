@@ -1,4 +1,3 @@
-이것도 번역
 
 > [!NOTE]
 >
@@ -23,7 +22,7 @@
 
 ### Vibe Engineering for OpenCode
 
-**HSCMM** (Human-supervised Context Management) + **AASM** (Active Agent-supervised Architecture)
+**HSCMM** (Human-supervised Context Management) + **AASM** (Active Agent-supervised Architecture) + **TLS** (Terminal Log Supervision)
 
 [![npm version](https://img.shields.io/npm/v/@ttalkkak-lab/opencode-contexty?color=369eff&labelColor=black&logo=npm&style=flat-square)](https://www.npmjs.com/package/@ttalkkak-lab/opencode-contexty)
 [![License](https://img.shields.io/badge/license-MIT-white?labelColor=black&style=flat-square)](LICENSE)
@@ -56,6 +55,7 @@ That's **Vibe Engineering**:
 
 1. **HSCMM** — You control what the AI sees. Explicitly. Transparently.
 2. **AASM** — An active agent that lints your _intent_, not just your code.
+3. **TLS** — An intelligent wrapper that summarizes your terminal outputs.
 
 ---
 
@@ -66,6 +66,7 @@ That's **Vibe Engineering**:
 - [Features](#features)
   - [AASM: Your Architectural Guardian](#aasm-your-architectural-guardian)
   - [HSCMM: Context You Can See](#hscmm-context-you-can-see)
+  - [TLS: Terminal Log Supervision](#tls-terminal-log-supervision)
 - [VSCode Extension](#vscode-extension)
 - [Usage](#usage)
 - [Configuration](#configuration)
@@ -115,7 +116,7 @@ AASM analyzes your prompts _before_ the AI acts. It detects:
 
 HSCMM persists all tool interactions to `.contexty/tool-parts.json`. Combined with our **VSCode Extension**, you get:
 
-- 👁️ **Visual Context Inspector** — See exactly what's in the AI's context window via Mirror Explorer
+- 👁️ **Visual Context Inspector** — See exactly what's in the AI's context window via Context Explorer
 - 🎯 **Manual Context Control** — Add files, folders, or text selections to context with one click
 - ✂️ **Remove from Context** — Exclude unwanted parts with inline remove buttons
 - 🔦 **Context Highlighting** — Lines in context are highlighted directly in the editor
@@ -124,7 +125,7 @@ HSCMM persists all tool interactions to `.contexty/tool-parts.json`. Combined wi
 
 ```
 ┌─────────────────────────────────────────┐
-│  Mirror Explorer                        │
+│  Context Explorer                       │
 │  ├─ 📁 src/                             │
 │  │   ├─ 📄 index.ts                     │
 │  │   │   └─ L1-50: import { ... }   ✕   │
@@ -137,17 +138,42 @@ HSCMM persists all tool interactions to `.contexty/tool-parts.json`. Combined wi
 
 The plugin automatically captures tool logs. The extension lets you _see_ and _manage_ them.
 
+### TLS: Terminal Log Supervision
+
+> "Did the build fail? Why?" — **Summarized.**
+
+TLS wraps your terminal commands and uses AI to summarize the output. It categorizes results into Success, Warning, or Error, so you don't have to parse thousands of lines of logs to find the issue.
+
+```bash
+# Wrap any command with 'tls'
+tls npm run build
+tls git status
+```
+
+**Output Example:**
+```
+----------------------------------------------------
+npm run build
+----------------------------------------------------
+... (verbose output hidden/summarized) ...
+----------------------------------------------------
+summary:
+ Status: Error
+ - Build failed in src/index.ts
+ - Type mismatch on line 42: Argument of type 'string' is not assignable to parameter of type 'number'.
+```
+
 ---
 
 ## VSCode Extension
 
-The **Mirror Explorer** is a VSCode extension that provides a visual interface for managing context items.
+The **Context Explorer** is a VSCode extension that provides a visual interface for managing context items.
 
 ### Features
 
 | Feature                  | Description                                                                                       |
 | ------------------------ | ------------------------------------------------------------------------------------------------- |
-| **Mirror Explorer**      | Hierarchical tree view in the Explorer sidebar showing all files with context parts               |
+| **Context Explorer**     | Hierarchical tree view in the Explorer sidebar showing all files with context parts               |
 | **Add Files to Context** | Right-click files/folders or use `Cmd+Shift+A` (Mac) / `Ctrl+Shift+A` (Windows) to add to context |
 | **Add Selections**       | Select text and add via right-click, status bar button, or CodeLens overlay                       |
 | **Remove from Context**  | Inline remove buttons on parts and files in the tree view                                         |
@@ -167,7 +193,7 @@ The OpenCode plugin captures data. The VSCode extension displays it. This separa
 
 1. **No terminal clutter** — Your OpenCode stays clean
 2. **Rich UI** — Trees, icons, and inline actions that terminals can't do
-3. **Persistent view** — Mirror Explorer stays open while you work
+3. **Persistent view** — Context Explorer stays open while you work
 4. **IDE integration** — Click a file in context → opens in editor
 
 ---
@@ -229,6 +255,10 @@ Create `contexty.config.json` in your project root:
     "enableLinting": true,
     "confidenceThreshold": 0.7,
     "model": "claude-sonnet-4-20250514"
+  },
+  "tls": {
+    "enabled": true,
+    "model": "claude-sonnet-4-20250514"
   }
 }
 ```
@@ -240,6 +270,8 @@ Create `contexty.config.json` in your project root:
 | `aasm.enableLinting`       | boolean                   | `true`         | Enable LLM-based linting           |
 | `aasm.confidenceThreshold` | number                    | `0.7`          | Minimum confidence for suggestions |
 | `aasm.model`               | string                    | (host default) | LLM model for linting              |
+| `tls.enabled`              | boolean                   | `true`         | Enable TLS globally                |
+| `tls.model`                | string                    | (host default) | LLM model for summarization        |
 
 ---
 
@@ -280,6 +312,8 @@ LLM Response
 | `LLMLinter`                | `src/aasm/LLMLinter.ts`        | LLM-based architecture linting |
 | `SubsessionHelper`         | `src/aasm/SubsessionHelper.ts` | Manages LLM subsessions        |
 | `createHSCMMTransformHook` | `src/hscmm/transformer.ts`     | Context transformation         |
+| `TLSModule`                | `src/tls/index.ts`             | Terminal Log Supervision       |
+| `createTLSCommandHook`     | `src/hooks/command-execute-before.tls.ts` | Intercepts 'tls' command       |
 
 ---
 
@@ -295,7 +329,7 @@ AASM is that tool. It's not a linter that checks semicolons. It's a **senior arc
 
 ### The Ddalkkak Philosophy
 
-This project comes from **Korea Ddalkkak Lab** (딸깍 연구소).
+This project comes from **ttalkkak-lab** (딸깍 연구소).
 
 "Ddalkkak" (딸깍) is the Korean onomatopoeia for a click—the satisfying snap of something fitting perfectly into place. That's what we're building: tools that just _click_.
 
@@ -305,7 +339,7 @@ No configuration wrestling. No documentation spelunking. Install, and it works. 
 
 ## License
 
-MIT © [Korea Ddalkkak Lab](https://github.com/ttalkkak-lab)
+MIT © [ttalkkak-lab](https://github.com/ttalkkak-lab)
 
 ---
 

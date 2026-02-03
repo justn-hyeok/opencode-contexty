@@ -7,10 +7,14 @@
   "description": "OpenCode Plugin for Vibe Engineering with HSCMM and AASM",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "opencode-contexty": "./dist/cli/index.js"
+  },
   "files": [
     "dist",
     "opencode.json",
-    "README.md"
+    "README.md",
+    "schema.json"
   ],
   "keywords": [
     "opencode",

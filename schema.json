@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://unpkg.com/@ttalkkak-lab/opencode-contexty/schema.json",
+  "title": "Contexty Configuration",
+  "description": "Configuration schema for @ttalkkak-lab/opencode-contexty plugin",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference"
+    },
+    "aasm": {
+      "type": "object",
+      "description": "Active Agent-supervised Architecture settings",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable AASM"
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["passive", "active"],
+          "default": "passive",
+          "description": "Agent supervision mode. 'passive' monitors without intervention, 'active' enables architecture linting and intent analysis."
+        },
+        "enableLinting": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable architecture linting to detect anti-patterns and violations"
+        },
+        "confidenceThreshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0.7,
+          "description": "Confidence threshold for AASM decisions (0.0-1.0)"
+        },
+        "model": {
+          "type": "string",
+          "description": "Custom model identifier for AASM operations (e.g., 'google/antigravity-gemini-3-flash'). If not specified, uses the session model."
+        }
+      },
+      "required": ["enabled", "mode", "enableLinting", "confidenceThreshold"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["aasm"],
+  "additionalProperties": false
+}

@@ -7,11 +7,10 @@
 
 > [!TIP]
 >
-> **Quick Start**: Just install and go. AASM watches your back. HSCMM gives you control.
+> **Quick Start**: One command to install. AASM watches your back. HSCMM gives you control.
 >
 > ```bash
-> # Add to your opencode.json plugins array
-> "plugins": ["@ttalkkak-lab/opencode-contexty"]
+> bunx @ttalkkak-lab/opencode-contexty init
 > ```
 
 <!-- <CENTERED SECTION FOR GITHUB DISPLAY> -->
@@ -67,7 +66,7 @@ That's **Vibe Engineering**:
   - [AASM: Your Architectural Guardian](#aasm-your-architectural-guardian)
   - [HSCMM: Context You Can See](#hscmm-context-you-can-see)
   - [TLS: Terminal Log Supervision](#tls-terminal-log-supervision)
-- [VSCode Extension](#vscode-extension)
+- [Installation](#installation)
 - [Usage](#usage)
 - [Configuration](#configuration)
 - [How It Works](#how-it-works)
@@ -165,9 +164,44 @@ summary:
 
 ---
 
+## Installation
+
+### For Humans
+
+Install opencode-contexty with a single command:
+
+```bash
+bunx @ttalkkak-lab/opencode-contexty init
+```
+
+The CLI will:
+- Install and register the plugin in your OpenCode configuration
+- Set up the IDE extension (VSCode, Cursor, Windsurf, etc.)
+- Create `contexty.config.json` with your preferences
+- Validate the installation
+
+**Requirements**: [OpenCode](https://opencode.ai) must be installed first.
+
+### For LLM Agents
+
+Paste this into your LLM agent session:
+
+```
+Install and configure opencode-contexty by following the instructions here:
+https://raw.githubusercontent.com/ttalkkak-lab/opencode-contexty/refs/heads/main/installation.md
+```
+
+Your LLM agent will handle the entire setup process automatically.
+
+---
+
+For detailed installation options and configuration, see the [installation guide](installation.md).
+
+---
+
 ## VSCode Extension
 
-The **Context Explorer** is a VSCode extension that provides a visual interface for managing context items.
+The **Context Explorer** extension is automatically installed during setup and provides a visual interface for managing context items.
 
 ### Features
 

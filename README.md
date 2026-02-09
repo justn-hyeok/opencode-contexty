@@ -1,4 +1,3 @@
-
 > [!NOTE]
 >
 > **opencode-contexty** is a plugin for [OpenCode](https://github.com/sst/opencode) that brings "Vibe Engineering" to AI-assisted development.
@@ -63,49 +62,16 @@ That's **Vibe Engineering**:
 - [The Problem](#the-problem)
 - [The Solution: Vibe Engineering](#the-solution-vibe-engineering)
 - [Features](#features)
-  - [AASM: Your Architectural Guardian](#aasm-your-architectural-guardian)
   - [HSCMM: Context You Can See](#hscmm-context-you-can-see)
+  - [AASM: Your Architectural Guardian](#aasm-your-architectural-guardian)
   - [TLS: Terminal Log Supervision](#tls-terminal-log-supervision)
 - [Installation](#installation)
-- [Usage](#usage)
 - [Configuration](#configuration)
-- [How It Works](#how-it-works)
 - [Philosophy](#philosophy)
 
 ---
 
 ## Features
-
-### AASM: Your Architectural Guardian
-
-> "Put everything in main.ts" — **BLOCKED.**
-
-AASM analyzes your prompts _before_ the AI acts. It detects:
-
-| Anti-Pattern         | What AASM Catches                                      |
-| -------------------- | ------------------------------------------------------ |
-| **Monolithic Files** | "Add all logic to index.ts"                            |
-| **God Objects**      | "Create a Manager class that handles everything"       |
-| **Global State**     | "Use a shared mutable object"                          |
-| **Tight Coupling**   | "Make ComponentA directly call ComponentB's internals" |
-| **Mixed Concerns**   | "Put database queries in the React component"          |
-
-**Three severity levels:**
-
-- 🚫 **Critical**: Request blocked. You must rephrase or disable AASM.
-- ⚠️ **Warning**: AI proceeds with caution, explains risks.
-- 💡 **Advisory**: Information only, no blocking.
-
-```bash
-# Enable active supervision
-/agent active
-
-# Disable (when you know what you're doing)
-/agent passive
-
-# Check current mode
-/agent status
-```
 
 ### HSCMM: Context You Can See
 
@@ -137,6 +103,37 @@ HSCMM persists all tool interactions to `.contexty/tool-parts.json`. Combined wi
 
 The plugin automatically captures tool logs. The extension lets you _see_ and _manage_ them.
 
+### AASM: Your Architectural Guardian
+
+> "Put everything in main.ts" — **BLOCKED.**
+
+AASM analyzes your prompts _before_ the AI acts. It detects:
+
+| Anti-Pattern         | What AASM Catches                                      |
+| -------------------- | ------------------------------------------------------ |
+| **Monolithic Files** | "Add all logic to index.ts"                            |
+| **God Objects**      | "Create a Manager class that handles everything"       |
+| **Global State**     | "Use a shared mutable object"                          |
+| **Tight Coupling**   | "Make ComponentA directly call ComponentB's internals" |
+| **Mixed Concerns**   | "Put database queries in the React component"          |
+
+**Three severity levels:**
+
+- 🚫 **Critical**: Request blocked. You must rephrase or disable AASM.
+- ⚠️ **Warning**: AI proceeds with caution, explains risks.
+- 💡 **Advisory**: Information only, no blocking.
+
+```bash
+# Enable active supervision
+/agent-active
+
+# Disable (when you know what you're doing)
+/agent-passive
+
+# Check current mode
+/agent-status
+```
+
 ### TLS: Terminal Log Supervision
 
 > "Did the build fail? Why?" — **Summarized.**
@@ -145,11 +142,12 @@ TLS wraps your terminal commands and uses AI to summarize the output. It categor
 
 ```bash
 # Wrap any command with 'tls'
-tls npm run build
-tls git status
+/tls npm run build
+/tls git status
 ```
 
 **Output Example:**
+
 ```
 ----------------------------------------------------
 npm run build
@@ -175,6 +173,7 @@ bunx @ttalkkak-lab/opencode-contexty init
 ```
 
 The CLI will:
+
 - Install and register the plugin in your OpenCode configuration
 - Set up the IDE extension (VSCode, Cursor, Windsurf, etc.)
 - Create `contexty.config.json` with your preferences
@@ -205,16 +204,16 @@ The **Context Explorer** extension is automatically installed during setup and p
 
 ### Features
 
-| Feature                  | Description                                                                                       |
-| ------------------------ | ------------------------------------------------------------------------------------------------- |
-| **Context Explorer**     | Hierarchical tree view in the Explorer sidebar showing all files with context parts               |
-| **Drag & Drop**          | Drag files or folders directly into Context Explorer to add them to context                       |
-| **Add Files to Context** | Right-click files/folders to add to context                                                       |
-| **Add Selections**       | Select text and add via right-click, status bar button, or CodeLens overlay                       |
-| **Remove from Context**  | Inline remove buttons on parts and files in the tree view                                         |
-| **Context Highlighting** | Lines included in context are highlighted with a light blue background in the editor              |
-| **Auto-Refresh**         | Tree view automatically updates when files change                                                 |
-| **Blacklist Support**    | Removed parts are stored in `.contexty/tool-parts.blacklist.json` for permanent exclusion         |
+| Feature                  | Description                                                                               |
+| ------------------------ | ----------------------------------------------------------------------------------------- |
+| **Context Explorer**     | Hierarchical tree view in the Explorer sidebar showing all files with context parts       |
+| **Drag & Drop**          | Drag files or folders directly into Context Explorer to add them to context               |
+| **Add Files to Context** | Right-click files/folders to add to context                                               |
+| **Add Selections**       | Select text and add via right-click, status bar button, or CodeLens overlay               |
+| **Remove from Context**  | Inline remove buttons on parts and files in the tree view                                 |
+| **Context Highlighting** | Lines included in context are highlighted with a light blue background in the editor      |
+| **Auto-Refresh**         | Tree view automatically updates when files change                                         |
+| **Blacklist Support**    | Removed parts are stored in `.contexty/tool-parts.blacklist.json` for permanent exclusion |
 
 ### Why a Separate Extension?
 
@@ -224,51 +223,6 @@ The OpenCode plugin captures data. The VSCode extension displays it. This separa
 2. **Rich UI** — Trees, icons, and inline actions that terminals can't do
 3. **Persistent view** — Context Explorer stays open while you work
 4. **IDE integration** — Click a file in context → opens in editor
-
----
-
-## Usage
-
-Once installed, **it just works**.
-
-### AASM Commands
-
-| Command          | Description                               |
-| ---------------- | ----------------------------------------- |
-| `/agent active`  | Enable architecture supervision (default) |
-| `/agent passive` | Disable supervision                       |
-| `/agent status`  | Show current mode and settings            |
-
-### HSCMM: Automatic Context Capture
-
-HSCMM runs silently in the background:
-
-1. **Every tool call** is logged to `.contexty/tool-parts.json`
-2. **VSCode Extension** reads this file and displays it visually
-3. **You manage context** through the extension UI, not commands
-
-No commands needed. The plugin captures. The extension displays. You control.
-
-### What Happens When AASM Blocks
-
-When you request something architecturally dangerous:
-
-1. **Toast notification** appears explaining the violation
-2. **Request is replaced** with a system instruction
-3. **AI responds** explaining why it can't proceed
-4. **You decide**: rephrase your request or disable AASM
-
-Example:
-
-```
-You: "Put all the code in one big main.ts file"
-
-🚫 AASM - Request Blocked
-❌ Monolithic main file detected
-💡 Split into modules based on responsibility
-
-To disable: "Set agent to passive mode"
-```
 
 ---
 
@@ -301,48 +255,6 @@ Create `contexty.config.json` in your project root:
 | `aasm.model`               | string                    | (host default) | LLM model for linting              |
 | `tls.enabled`              | boolean                   | `true`         | Enable TLS globally                |
 | `tls.model`                | string                    | (host default) | LLM model for summarization        |
-
----
-
-## How It Works
-
-### Architecture
-
-```
-User Prompt
-    │
-    ▼
-┌─────────────────────────────────────┐
-│  chat.message hook (AASM)           │
-│  ├─ Intent Analysis (local)         │
-│  └─ LLM Lint (subsession)           │
-│      ├─ Critical → BLOCK            │
-│      ├─ Warning → ADVISE            │
-│      └─ Advisory → PASS             │
-└─────────────────────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────────┐
-│  messages.transform hook (HSCMM)    │
-│  ├─ Persist tool logs               │
-│  └─ Inject context                  │
-└─────────────────────────────────────┘
-    │
-    ▼
-LLM Response
-```
-
-### Key Components
-
-| Component                  | Location                       | Role                           |
-| -------------------------- | ------------------------------ | ------------------------------ |
-| `AASMModule`               | `src/aasm/index.ts`            | Main supervision orchestrator  |
-| `IntentAnalyzer`           | `src/aasm/index.ts`            | Local intent classification    |
-| `LLMLinter`                | `src/aasm/LLMLinter.ts`        | LLM-based architecture linting |
-| `SubsessionHelper`         | `src/aasm/SubsessionHelper.ts` | Manages LLM subsessions        |
-| `createHSCMMTransformHook` | `src/hscmm/transformer.ts`     | Context transformation         |
-| `TLSModule`                | `src/tls/index.ts`             | Terminal Log Supervision       |
-| `createTLSCommandHook`     | `src/hooks/command-execute-before.tls.ts` | Intercepts 'tls' command       |
 
 ---
 

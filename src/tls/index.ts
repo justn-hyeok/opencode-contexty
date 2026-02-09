@@ -62,7 +62,7 @@ export class TLSModule {
     };
   }
 
-  transformResultToPrompt(result: TlsResult) {
-    return getOutputPrompt(result);
-  }
 }
+
+export * from './types';
+export * from './prompts';

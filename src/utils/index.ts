@@ -1,5 +1,6 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import * as crypto from 'crypto';
 import type { OpencodeClient } from '@opencode-ai/sdk';
 
 /**
@@ -210,4 +211,14 @@ export class DateUtils {
     if (diffHour < 24) return `${diffHour}h ago`;
     return `${diffDay}d ago`;
   }
+}
+
+export function generateCustomId(prefix: string): string {
+	const timestampHex = Date.now().toString(16).padStart(12, '0');
+	const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+	let randomPart = '';
+	for (let i = 0; i < 14; i++) {
+		randomPart += alphabet[crypto.randomInt(0, alphabet.length)];
+	}
+	return `${prefix}_${timestampHex}${randomPart}`;
 }

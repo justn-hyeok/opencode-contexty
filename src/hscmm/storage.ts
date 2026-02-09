@@ -1,29 +1,38 @@
 import fs from "fs/promises";
 import path from "path";
 
-export type ToolLogEntry = {
+export type ToolStateCompleted = {
+    status: "completed";
+    input: {
+      [key: string]: unknown;
+    };
+    output: string;
+    title: string;
+    metadata: {
+      [key: string]: unknown;
+    };
+    time: {
+      start: number;
+      end: number;
+      compacted?: number;
+    };
+};
+
+export type ToolPart = {
   id: string;
   sessionID: string;
   messageID: string;
   type: "tool";
   callID: string;
   tool: string;
-  state: {
-    status: "completed" | "error" | "pending" | "running";
-    input: Record<string, unknown>;
-    output?: string;
-    title?: string;
-    metadata?: Record<string, unknown>;
-    time?: {
-      start: number;
-      end?: number;
-    };
+  state: ToolStateCompleted;
+  metadata?: {
+    [key: string]: unknown;
   };
-  metadata?: Record<string, unknown>;
 };
 
 export type ToolLogSpec = {
-  parts: ToolLogEntry[];
+  parts: ToolPart[];
 };
 
 export type ToolLogBlacklist = {
@@ -83,7 +92,7 @@ export const writeToolLogBlacklist = async (
   await fs.writeFile(filePath, JSON.stringify(spec, null, 2), "utf8");
 };
 
-export const appendToolLogEntry = async (baseDir: string, entry: ToolLogEntry): Promise<void> => {
+export const appendToolLogEntry = async (baseDir: string, entry: ToolPart): Promise<void> => {
   const spec = await readToolLog(baseDir);
   spec.parts.push(entry);
   await writeToolLog(baseDir, spec);

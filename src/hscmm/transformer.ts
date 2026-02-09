@@ -1,4 +1,4 @@
-import { readToolLog, readToolLogBlacklist, writeToolLog, ToolLogEntry } from './storage';
+import { readToolLog, readToolLogBlacklist, writeToolLog, ToolPart } from './storage';
 
 // Define minimal interfaces for the input/output structure
 interface MessageInfo {
@@ -21,7 +21,7 @@ interface HookOutput {
   messages: Message[];
 }
 
-function isValidToolPart(part: any): part is ToolLogEntry {
+function isValidToolPart(part: any): part is ToolPart {
   return (
     part &&
     typeof part === 'object' &&
@@ -37,7 +37,7 @@ function isValidToolPart(part: any): part is ToolLogEntry {
 export function createHSCMMTransformHook(directory: string) {
   return async (_input: unknown, output: HookOutput) => {
     // 1. Extract new tool parts from messages
-    const toolPartsFromMessages: ToolLogEntry[] = [];
+    const toolPartsFromMessages: ToolPart[] = [];
 
     for (const message of output.messages) {
       for (const part of message.parts) {
@@ -99,7 +99,7 @@ export function createHSCMMTransformHook(directory: string) {
     const fallbackMessageID =
       lastAssistantMessage?.info.id ?? output.messages[output.messages.length - 1]?.info.id;
 
-    const partsByMessageID = new Map<string, ToolLogEntry[]>();
+    const partsByMessageID = new Map<string, ToolPart[]>();
 
     for (const part of mergedParts) {
       const resolvedMessageID = messageIDs.has(part.messageID)
@@ -113,7 +113,7 @@ export function createHSCMMTransformHook(directory: string) {
       // Clone and tag
       const contextyMetadata = part.metadata?.contexty as Record<string, unknown> | undefined;
 
-      const taggedPart: ToolLogEntry = {
+      const taggedPart: ToolPart = {
         ...part,
         messageID: resolvedMessageID,
         metadata: {

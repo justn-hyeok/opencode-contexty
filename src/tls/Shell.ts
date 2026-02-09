@@ -1,5 +1,5 @@
 import type { PluginInput } from '@opencode-ai/plugin';
-import { ShellRunningError } from './errors';
+import { BunShellOutput } from './types';
 
 export class Shell {
   private cwd: string;
@@ -12,12 +12,12 @@ export class Shell {
     if (cwd) this.cwd = cwd;
   }
 
-  async execute(command: string): Promise<string> {
+  async execute(command: string): Promise<BunShellOutput> {
     const splited_command = command.split(" ");
-    return await this.$`${splited_command}`
+    return this.$`${splited_command}`
       .cwd(this.cwd)
-      .text()
-      .catch(()=>{throw new ShellRunningError("Fail to run commad.")});
+      .quiet()
+      .nothrow();
   }
   
   setCwd(newCwd: string) {

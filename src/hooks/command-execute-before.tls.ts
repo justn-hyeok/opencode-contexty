@@ -5,7 +5,7 @@ export function createTLSCommandHook(tls: TLSModule, pluginInput: PluginInput): 
   return async (input, output) => {
     if (input.command === 'tls') {
       const tlsResult = await tls.executeTLS(input.arguments, input.sessionID);
-      const template = tls.createTemplate(tlsResult);
+      const template = (tlsResult.success) ? tls.transformResultToPrompt(tlsResult) : "Just Stop. Do not anything.";
       
       output.parts.length = 0;
       output.parts.push({

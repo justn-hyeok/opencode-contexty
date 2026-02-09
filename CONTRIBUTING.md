@@ -1,6 +1,6 @@
 # Contributing to opencode-contexty
 
-First off, thanks for taking the time to contribute! This document provides guidelines and instructions for contributing to opencode-contexty.
+Thanks for taking the time to contribute! This document provides guidelines for contributing to opencode-contexty.
 
 ## Table of Contents
 
@@ -12,8 +12,9 @@ First off, thanks for taking the time to contribute! This document provides guid
 - [Development Workflow](#development-workflow)
   - [Build Commands](#build-commands)
 - [Making Changes](#making-changes)
-  - [Adding AASM Features](#adding-aasm-features)
   - [Adding HSCMM Features](#adding-hscmm-features)
+  - [Adding AASM Features](#adding-aasm-features)
+  - [Adding TLS Features](#adding-tls-features)
   - [Adding a New Hook](#adding-a-new-hook)
   - [Adding a New Tool](#adding-a-new-tool)
 - [Pull Request Process](#pull-request-process)
@@ -22,20 +23,19 @@ First off, thanks for taking the time to contribute! This document provides guid
 ## Getting Started
 
 ### Prerequisites
-EX)
-- **Bun** (latest version) - The only supported package manager and runtime
-- **TypeScript 5.4+** - For type checking and declarations
-- **OpenCode 1.0.150+** - For testing the plugin
-- **VSCode** (optional) - For testing the Mirror Explorer extension
+
+- **Bun** (≥1.0.0) — Package manager and runtime
+- **TypeScript 5.4+**
+- **OpenCode 1.0.150+** — For testing the plugin
+- **VSCode / Cursor / Windsurf** (optional) — For testing the Context Explorer extension
 
 ### Development Setup
-EX)
+
 ```bash
-# Clone the repository
 git clone https://github.com/ttalkkak-lab/opencode-contexty.git
 cd opencode-contexty
 
-# Install dependencies (bun only - never use npm/yarn)
+# Install dependencies (bun only)
 bun install
 
 # Build the project
@@ -43,15 +43,13 @@ bun run build
 ```
 
 ### Testing Your Changes Locally
-EX)
-After making changes, you can test your local build in OpenCode:
 
-1. **Build the project**:
+1. **Build**:
    ```bash
    bun run build
    ```
 
-2. **Update your OpenCode config** (`~/.config/opencode/opencode.json` or `opencode.jsonc`):
+2. **Point OpenCode to your local build** (`~/.config/opencode/opencode.json`):
    ```json
    {
      "plugin": [
@@ -60,83 +58,76 @@ After making changes, you can test your local build in OpenCode:
    }
    ```
 
-   For example, if your project is at `/Users/yourname/projects/opencode-contexty`:
-   ```json
-   {
-     "plugin": [
-       "file:///Users/yourname/projects/opencode-contexty/dist/index.js"
-     ]
-   }
-   ```
+   > Remove `"@ttalkkak-lab/opencode-contexty"` from the plugin array if it exists, to avoid conflicts with the npm version.
 
-   > **Note**: Remove `"@ttalkkak-lab/opencode-contexty"` from the plugin array if it exists, to avoid conflicts with the npm version.
-
-3. **Restart OpenCode** to load the changes.
-
-4. **Verify** the plugin is loaded by running `/agent status` to check AASM availability.
+3. **Restart OpenCode** and verify with `/agent-status`.
 
 ## Project Structure
 
 ```
-opencode-contexty/
-├── src/
-│   ├── aasm/              # Active Agent-Supervised Architecture
-│   │   ├── index.ts       # AASMModule, IntentAnalyzer
-│   │   ├── LLMLinter.ts   # LLM-based architecture linting
-│   │   ├── SubsessionHelper.ts  # LLM subsession management
-│   │   └── prompts.ts     # Lint prompt building
-│   ├── hscmm/             # Human-Supervised Context Management
-│   │   ├── index.ts       # HSCMM exports
-│   │   ├── transformer.ts # Context transformation hook
-│   │   └── storage.ts     # Tool log persistence
-│   ├── hooks/             # OpenCode integration hooks
-│   │   ├── chat-message.aasm.ts      # AASM chat hook
-│   │   └── messages-transform.hscmm.ts  # HSCMM transform hook
-│   ├── tools/             # Agent tools
-│   │   └── agent.ts       # AASM mode control tool
-│   ├── types/             # TypeScript interfaces
-│   ├── utils/             # Common utilities
-│   └── index.ts           # Main plugin entry (ContextyPlugin)
-├── dist/                  # Build output
-├── .contexty/             # Runtime data (tool-parts.json, blacklist)
-├── opencode.json          # OpenCode plugin configuration
-├── contexty.config.json   # Plugin-specific configuration
-└── tsconfig.json          # TypeScript configuration
+src/
+├── index.ts                              # Plugin entry point (ContextyPlugin)
+├── cli/
+│   └── index.ts                          # CLI: `opencode-contexty init`
+├── hscmm/                                # Human-Supervised Context Management
+│   ├── index.ts                          # Re-exports
+│   ├── transformer.ts                    # Context transformation logic
+│   ├── transformer.test.ts               # Transformer tests
+│   └── storage.ts                        # Tool log persistence (.contexty/)
+├── aasm/                                 # Active Agent-Supervised Architecture
+│   ├── index.ts                          # AASMModule, IntentAnalyzer
+│   ├── LLMLinter.ts                      # LLM-based architecture linting
+│   ├── LLMLinter.test.ts                 # LLMLinter tests
+│   ├── SubsessionHelper.ts               # LLM subsession management
+│   ├── SubsessionHelper.test.ts          # SubsessionHelper tests
+│   └── prompts.ts                        # Lint prompt builder & parser
+├── tls/                                  # Terminal Log Summarization
+│   ├── index.ts                          # TLSModule
+│   ├── Shell.ts                          # Shell command executor
+│   ├── TuiController.ts                  # Toast UI feedback
+│   ├── prompts.ts                        # Summarization & output prompts
+│   └── types.ts                          # TlsResult, BunShellOutput
+├── hooks/                                # OpenCode integration hooks
+│   ├── index.ts                          # Re-exports
+│   ├── chat-message.aasm.ts              # AASM: intercept user messages
+│   ├── messages-transform.hscmm.ts       # HSCMM: persist & inject tool parts
+│   └── command-execute-before.tls.ts     # TLS: intercept /tls command
+├── tools/                                # Agent tools
+│   ├── index.ts                          # Re-exports
+│   └── agent.ts                          # AASM mode control (/agent-*)
+├── types/
+│   └── index.ts                          # Core interfaces
+└── utils/
+    └── index.ts                          # FileSystem, TokenEstimator, Logger, etc.
 ```
 
 ## Development Workflow
 
 ### Build Commands
-EX
+
 ```bash
-# Type check only
-bun run tsc --noEmit
-
-# Full build (TypeScript compilation)
-bun run build
-
-# Watch mode for development
-bun run dev
-
-# Run tests
-bun test
-
-# Lint code
-bun run lint
-
-# Format code
-bun run format
+bun run build       # TypeScript compilation → dist/
+bun run dev         # Watch mode (tsc --watch)
+bun test            # Run tests
+bun run lint        # ESLint
+bun run format      # Prettier
 ```
 
 ## Making Changes
 
+### Adding HSCMM Features
+
+HSCMM handles context persistence and transformation.
+
+- **Storage** (`src/hscmm/storage.ts`): Tool log read/write to `.contexty/tool-parts.json`
+- **Transformation** (`src/hscmm/transformer.ts`): Extract tool parts from messages, deduplicate, respect blacklist, re-inject with metadata
+- Tests: `src/hscmm/transformer.test.ts`
+
 ### Adding AASM Features
 
-EX)
+AASM handles intent analysis and architecture linting.
 
-AASM (Active Agent-Supervised Architecture) handles intent analysis and architecture linting.
-
-1. For **new anti-pattern detection**, modify `src/aasm/prompts.ts`:
+1. **New anti-pattern detection** — modify `src/aasm/prompts.ts`:
    ```typescript
    // Add to the anti-pattern list in buildLintPrompt()
    const antiPatterns = [
@@ -145,36 +136,35 @@ AASM (Active Agent-Supervised Architecture) handles intent analysis and architec
    ];
    ```
 
-2. For **new intent types**, update `src/aasm/index.ts`:
+2. **New intent types** — update `src/aasm/index.ts`:
    ```typescript
    // Add to IntentAnalyzer keyword patterns
    private static readonly INTENT_KEYWORDS = {
      refactor: ['refactor', 'restructure', ...],
      feature: ['add', 'create', ...],
-     // Add new intent type here
      migration: ['migrate', 'upgrade', 'convert', ...],
    };
    ```
 
-3. Add tests in `src/aasm/*.test.ts`
+3. Tests: `src/aasm/LLMLinter.test.ts`, `src/aasm/SubsessionHelper.test.ts`
 
-### Adding HSCMM Features
+### Adding TLS Features
 
-HSCMM (Human-Supervised Context Management) handles context persistence and transformation.
+TLS wraps terminal commands and summarizes output via LLM. Results are also persisted to HSCMM.
 
-1. For **storage modifications**, update `src/hscmm/storage.ts`
-2. For **transformation logic**, modify `src/hscmm/transformer.ts`
-3. Add tests in `src/hscmm/*.test.ts`
+- **Shell execution** (`src/tls/Shell.ts`): Command execution via Bun shell, returns `BunShellOutput`
+- **Summarization** (`src/tls/index.ts`): LLM-based output summarization through SubsessionHelper
+- **Prompts** (`src/tls/prompts.ts`): Summarization prompt and output template
+- **UI feedback** (`src/tls/TuiController.ts`): Animated toast notifications for progress/success/fail
+- **Types** (`src/tls/types.ts`): `TlsResult`, `BunShellOutput`
 
 ### Adding a New Hook
 
-1. Create a new file in `src/hooks/` with naming pattern `[name].[module].ts`:
+1. Create `src/hooks/<hook-name>.<module>.ts`:
    ```typescript
-   // src/hooks/session-start.aasm.ts
    import type { OpencodeClient } from '@opencode-ai/plugin';
-   import type { AASMModule } from '../aasm';
 
-   export function createSessionStartHook(aasm: AASMModule, client: OpencodeClient) {
+   export function createMyHook(client: OpencodeClient) {
      return async () => {
        // Hook implementation
      };
@@ -187,25 +177,23 @@ HSCMM (Human-Supervised Context Management) handles context persistence and tran
    ```typescript
    return {
      // ... existing hooks
-     'session.start': createSessionStartHook(aasm, client),
+     'hook.name': createMyHook(client),
    };
    ```
 
 ### Adding a New Tool
-EX)
-1. Create the tool in `src/tools/`:
+
+1. Create `src/tools/my-tool.ts`:
    ```typescript
-   // src/tools/my-tool.ts
    import { tool } from '@opencode-ai/plugin';
 
    export function createMyTool() {
      return tool({
-       description: 'Description of what this tool does',
+       description: 'What this tool does',
        args: {
          param: tool.schema.string().describe('Parameter description'),
        },
        async execute(args) {
-         // Tool implementation
          return { result: 'success' };
        },
      });
@@ -225,43 +213,36 @@ EX)
    };
    ```
 
-
 ## Pull Request Process
 
 1. **Fork** the repository and create your branch from `main`
 2. **Make changes** following the conventions above
 3. **Build and test** locally:
    ```bash
-   bun run lint       # Ensure no lint errors
-   bun run build      # Ensure build succeeds
-   bun test           # Ensure all tests pass
+   bun run lint
+   bun run build
+   bun test
    ```
 4. **Test in OpenCode** using the local build method described above
-5. **Commit** with clear, descriptive messages:
-   - Use present tense ("Add feature" not "Added feature")
-   - Reference issues if applicable ("Fix #123")
-6. **Push** to your fork and create a Pull Request
-7. **Describe** your changes clearly in the PR description
+5. **Commit** with clear messages in present tense ("Add feature" not "Added feature")
+6. **Push** and create a Pull Request
 
 ### PR Checklist
-EX)
-- [ ] Code follows project conventions
+
 - [ ] `bun run lint` passes
 - [ ] `bun run build` succeeds
 - [ ] `bun test` passes
 - [ ] Tested locally with OpenCode
-- [ ] Updated documentation if needed (README.md, AGENTS.md)
+- [ ] Updated documentation if needed
 - [ ] No version changes in `package.json`
-- [ ] AASM and HSCMM concerns remain properly separated
+- [ ] HSCMM, AASM, TLS concerns remain properly separated
 
 ## Getting Help
 
-- **Project Knowledge**: Check `AGENTS.md` for detailed project documentation
 - **Code Patterns**: Review existing implementations in `src/`
 - **Issues**: Open an issue for bugs or feature requests
 - **Discussions**: Start a discussion for questions or ideas
 
-
 ---
 
-Thank you for contributing to opencode-contexty! Your efforts help make AI-assisted development better for everyone.
+Thank you for contributing to opencode-contexty!

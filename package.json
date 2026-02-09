@@ -25,7 +25,7 @@
     "vibe-engineering"
   ],
   "author": "Korea ttalkkak Lab",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ttalkkak-lab/opencode-contexty.git"

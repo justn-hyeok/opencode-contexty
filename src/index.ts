@@ -3,7 +3,15 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import { Logger } from './utils';
 import { AASMModule } from './aasm';
-import { createAASMChatHook, createHSCMMTransformHook, createTLSCommandHook } from './hooks';
+import { ACPMModule } from './acpm';
+import {
+  createAASMChatHook,
+  createHSCMMTransformHook,
+  createPermissionAskHook,
+  createSystemTransformHook,
+  createTLSCommandHook,
+  createToolExecuteBeforeHook,
+} from './hooks';
 import { createAgentTool } from './tools';
 import { ContextyConfig } from './types';
 import { TLSModule } from './tls';
@@ -35,9 +43,10 @@ export const ContextyPlugin: Plugin = async (pluginInput: PluginInput) => {
       const userConfig = JSON.parse(await fs.readFile(configPath, 'utf-8'));
       config = {
         ...defaultConfig,
-        aasm: { ...defaultConfig.aasm, ...userConfig.aasm },
+      aasm: { ...defaultConfig.aasm, ...userConfig.aasm },
         // Preserve other optional configs if present
         hscmm: userConfig.hscmm,
+        acpm: userConfig.acpm,
         tls: userConfig.tls,
       };
     } catch {
@@ -53,6 +62,7 @@ export const ContextyPlugin: Plugin = async (pluginInput: PluginInput) => {
 
   const aasm = new AASMModule(config, client, configPath);
   const tls = new TLSModule(pluginInput, config, configPath);
+  const acpm = new ACPMModule(directory, (config as { acpm?: { defaultPreset?: string } }).acpm?.defaultPreset);
 
   return {
     tool: {
@@ -61,6 +71,9 @@ export const ContextyPlugin: Plugin = async (pluginInput: PluginInput) => {
     'chat.message': createAASMChatHook(aasm, client),
     'command.execute.before': createTLSCommandHook(tls, pluginInput),
     'experimental.chat.messages.transform': createHSCMMTransformHook(directory),
+    'tool.execute.before': createToolExecuteBeforeHook(acpm, client),
+    'permission.ask': createPermissionAskHook(acpm),
+    'experimental.chat.system.transform': createSystemTransformHook(acpm),
   };
 };
 

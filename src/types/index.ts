@@ -75,6 +75,9 @@ export interface ContextyConfig {
     autoCleanupThreshold: number;
     snapshotDir: string;
   };
+  acpm?: {
+    defaultPreset?: string;
+  };
   /** TLS settings (Optional) */
   tls: {
     enabled: boolean;

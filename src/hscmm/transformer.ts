@@ -1,6 +1,7 @@
 import { readToolLog, readToolLogBlacklist, writeToolLog, ToolPart } from './storage';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
-// Define minimal interfaces for the input/output structure
 interface MessageInfo {
   id: string;
   role: string;
@@ -34,9 +35,53 @@ function isValidToolPart(part: any): part is ToolPart {
   );
 }
 
+async function filePartToToolPart(filePart: any, directory: string): Promise<ToolPart | null> {
+  const source = filePart.source;
+  if (!source || source.type !== 'file' || typeof source.path !== 'string') {
+    return null;
+  }
+
+  const absolutePath = path.resolve(directory, source.path);
+  const timestamp = Date.now();
+  const maxOutputLen = 50 * 1024;
+  const maxPreviewLen = 1000;
+
+  let content: string;
+  try {
+    content = await fs.readFile(absolutePath, 'utf8');
+  } catch {
+    return null;
+  }
+
+  const truncated = content.length > maxOutputLen;
+  const outputContent = truncated ? content.slice(0, maxOutputLen) : content;
+  const lines = outputContent.split('\n');
+  const numberedOutput = lines.map((line: string, i: number) => `${i + 1}: ${line}`).join('\n');
+  const preview = truncated ? content.slice(0, maxPreviewLen) : content;
+
+  return {
+    id: filePart.id,
+    sessionID: filePart.sessionID ?? '',
+    messageID: filePart.messageID ?? '',
+    type: 'tool',
+    callID: `file-ref-${filePart.id}`,
+    tool: 'read',
+    state: {
+      status: 'completed',
+      input: { filePath: absolutePath },
+      output: numberedOutput,
+      title: source.path,
+      metadata: { preview, truncated: !truncated },
+      time: { start: timestamp, end: timestamp },
+    },
+    metadata: {
+      contexty: { source: 'file-reference' },
+    },
+  };
+}
+
 export function createHSCMMTransformHook(directory: string) {
   return async (_input: unknown, output: HookOutput) => {
-    // 1. Extract new tool parts from messages
     const toolPartsFromMessages: ToolPart[] = [];
 
     for (const message of output.messages) {
@@ -48,14 +93,20 @@ export function createHSCMMTransformHook(directory: string) {
           if (isValidToolPart(part)) {
             toolPartsFromMessages.push(part);
           } else {
-            // For now, ignore invalid parts to prevent crashing or persisting bad data
             console.warn(`[Contexty] Invalid tool part encountered: ${part.id || 'unknown'}`);
+          }
+        } else if (
+          part.type === 'file' &&
+          part.metadata?.contexty?.source !== 'tool-log'
+        ) {
+          const converted = await filePartToToolPart(part, directory);
+          if (converted) {
+            toolPartsFromMessages.push(converted);
           }
         }
       }
     }
 
-    // 2. Load existing state
     const [blacklistSpec, persistedSpec] = await Promise.all([
       readToolLogBlacklist(directory),
       readToolLog(directory),
@@ -64,12 +115,10 @@ export function createHSCMMTransformHook(directory: string) {
     const blacklistIds = new Set(blacklistSpec.ids);
     const existingIds = new Set(persistedSpec.parts.map((part) => part.id));
 
-    // 3. Filter new parts
     const appendParts = toolPartsFromMessages.filter(
       (part) => !blacklistIds.has(part.id) && !existingIds.has(part.id)
     );
 
-    // 4. Merge and persist
     const mergedParts = [...persistedSpec.parts, ...appendParts].filter(
       (part) => !blacklistIds.has(part.id)
     );
@@ -78,7 +127,6 @@ export function createHSCMMTransformHook(directory: string) {
       await writeToolLog(directory, { parts: mergedParts });
     }
 
-    // 5. Remove original tool parts from messages (to be replaced/re-injected)
     for (const message of output.messages) {
       message.parts = message.parts.filter(
         (part) => part.type !== 'tool' && part.metadata?.contexty?.source !== 'tool-log'
@@ -89,11 +137,8 @@ export function createHSCMMTransformHook(directory: string) {
       return;
     }
 
-    // 6. Re-inject tool parts
     const messageIDs = new Set(output.messages.map((message) => message.info.id));
 
-    // Find fallback message ID (last assistant message or just last message)
-    // Note: We search in reverse to find the last assistant message
     const reversedMessages = [...output.messages].reverse();
     const lastAssistantMessage = reversedMessages.find((m) => m.info.role === 'assistant');
     const fallbackMessageID =
@@ -110,7 +155,6 @@ export function createHSCMMTransformHook(directory: string) {
         continue;
       }
 
-      // Clone and tag
       const contextyMetadata = part.metadata?.contexty as Record<string, unknown> | undefined;
 
       const taggedPart: ToolPart = {
@@ -134,7 +178,6 @@ export function createHSCMMTransformHook(directory: string) {
       partsByMessageID.get(resolvedMessageID)!.push(taggedPart);
     }
 
-    // 7. Append back to messages
     for (const message of output.messages) {
       const parts = partsByMessageID.get(message.info.id);
       if (parts && parts.length > 0) {

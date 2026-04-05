@@ -1,4 +1,5 @@
 import path from 'path';
+import fs from 'fs';
 import { PermissionEvaluator } from './evaluator';
 import { PermissionStorage } from './storage';
 import type { PermissionsFile, Preset } from './types';
@@ -13,6 +14,8 @@ export class ACPMModule {
   private readonly ready: Promise<void>;
   private activePreset: Preset | null = null;
   private evaluator: PermissionEvaluator = new PermissionEvaluator(null);
+  private watcher: fs.FSWatcher | null = null;
+  private activePresetName: string | null = null;
 
   constructor(baseDir: string, defaultPresetName?: string) {
     this.storage = new PermissionStorage(path.resolve(baseDir));
@@ -32,9 +35,41 @@ export class ACPMModule {
       if (presetName) {
         await this.loadPresetInternal(presetName);
       }
+
+      this.startWatching();
     } catch {
       this.setActivePreset(null);
     }
+  }
+
+  private startWatching(): void {
+    const filePath = path.join(path.resolve(this.storage['baseDir']), '.contexty', 'permissions.json');
+    try {
+      this.watcher = fs.watch(filePath, () => {
+        this.reloadActivePreset();
+      });
+    } catch {
+    }
+  }
+
+  private async reloadActivePreset(): Promise<void> {
+    try {
+      const permissionsFile = await this.storage.readPresets();
+      const targetName = this.activePresetName
+        ?? permissionsFile.activePreset
+        ?? permissionsFile.presets[0]?.name;
+
+      if (targetName) {
+        const preset = permissionsFile.presets.find((entry) => entry.name === targetName) ?? null;
+        this.setActivePreset(preset);
+      }
+    } catch {
+    }
+  }
+
+  destroy(): void {
+    this.watcher?.close();
+    this.watcher = null;
   }
 
   private async ensureReady(): Promise<void> {
@@ -43,6 +78,7 @@ export class ACPMModule {
 
   private setActivePreset(preset: Preset | null): void {
     this.activePreset = preset;
+    this.activePresetName = preset?.name ?? null;
     this.evaluator = new PermissionEvaluator(preset);
   }
 

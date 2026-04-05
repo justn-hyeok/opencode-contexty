@@ -13,7 +13,7 @@ import {
   createToolExecuteBeforeHook,
   createToolExecuteAfterHook,
 } from './hooks';
-import { createAgentTool } from './tools';
+import { createAgentTool, createAcpmTool } from './tools';
 import { ContextyConfig } from './types';
 import { TLSModule } from './tls';
 
@@ -68,6 +68,7 @@ export const ContextyPlugin: Plugin = async (pluginInput: PluginInput) => {
   return {
     tool: {
       aasm: createAgentTool(aasm),
+      acpm: createAcpmTool(acpm),
     },
     'chat.message': createAASMChatHook(aasm, client),
     'command.execute.before': createTLSCommandHook(tls, pluginInput),

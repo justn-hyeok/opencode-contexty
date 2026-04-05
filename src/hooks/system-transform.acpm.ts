@@ -30,12 +30,12 @@ function formatFolderRule(path: string, access: FolderAccess): string | null {
     return `${path} 폴더 읽기 전용`;
   }
 
-  return null;
+  return `${path} 폴더 읽기/쓰기 가능`;
 }
 
 function formatToolRule(category: ToolCategory, enabled: boolean): string | null {
   if (enabled) {
-    return null;
+    return `${TOOL_CATEGORY_LABELS[category]} 카테고리 활성화`;
   }
 
   return `${TOOL_CATEGORY_LABELS[category]} 카테고리 비활성화`;

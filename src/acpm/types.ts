@@ -23,6 +23,7 @@ export interface Preset {
 export interface PermissionsFile {
   version: number;
   presets: Preset[];
+  activePreset?: string;
 }
 
 export interface PermissionCheckResult {
@@ -72,6 +73,7 @@ export function isValidPermissionsFile(data: unknown): data is PermissionsFile {
     isRecord(data) &&
     typeof data.version === 'number' &&
     Array.isArray(data.presets) &&
-    data.presets.every(isValidPreset)
+    data.presets.every(isValidPreset) &&
+    (data.activePreset === undefined || typeof data.activePreset === 'string')
   );
 }

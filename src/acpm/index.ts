@@ -23,8 +23,14 @@ export class ACPMModule {
     try {
       await this.storage.ensurePermissionsFile();
 
-      if (defaultPresetName) {
-        await this.loadPresetInternal(defaultPresetName);
+      const permissionsFile = await this.storage.readPresets();
+
+      const presetName = defaultPresetName
+        ?? permissionsFile.activePreset
+        ?? permissionsFile.presets[0]?.name;
+
+      if (presetName) {
+        await this.loadPresetInternal(presetName);
       }
     } catch {
       this.setActivePreset(null);

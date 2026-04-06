@@ -1,0 +1,175 @@
+import { createHash } from "node:crypto";
+import type { SessionState, WithParts } from "../types";
+import { isMessageCompacted } from "../state/utils";
+
+const SUMMARY_ID_HASH_LENGTH = 16;
+const DCP_BLOCK_ID_TAG_REGEX = /(<dcp-message-id(?=[\s>])[^>]*>)b\d+(<\/dcp-message-id>)/g;
+const DCP_PAIRED_TAG_REGEX = /<dcp[^>]*>[\s\S]*?<\/dcp[^>]*>/gi;
+const DCP_UNPAIRED_TAG_REGEX = /<\/?dcp[^>]*>/gi;
+
+const generateStableId = (prefix: string, seed: string): string => {
+  const hash = createHash("sha256").update(seed).digest("hex").slice(0, SUMMARY_ID_HASH_LENGTH);
+  return `${prefix}_${hash}`;
+};
+
+export const createSyntheticUserMessage = (
+  baseMessage: WithParts,
+  content: string,
+  variant?: string,
+  stableSeed?: string,
+): WithParts => {
+  const userInfo = baseMessage.info as any;
+  const now = Date.now();
+  const deterministicSeed = stableSeed?.trim() || userInfo.id;
+  const messageId = generateStableId("msg_dcp_summary", deterministicSeed);
+  const partId = generateStableId("prt_dcp_summary", deterministicSeed);
+
+  return {
+    info: {
+      id: messageId,
+      sessionID: userInfo.sessionID,
+      role: "user" as const,
+      agent: userInfo.agent,
+      model: userInfo.model,
+      time: { created: now },
+      ...(variant !== undefined && { variant }),
+    },
+    parts: [
+      {
+        id: partId,
+        sessionID: userInfo.sessionID,
+        messageID: messageId,
+        type: "text" as const,
+        text: content,
+      },
+    ],
+  };
+};
+
+export const createSyntheticTextPart = (
+  baseMessage: WithParts,
+  content: string,
+  stableSeed?: string,
+) => {
+  const userInfo = baseMessage.info as any;
+  const deterministicSeed = stableSeed?.trim() || userInfo.id;
+  const partId = generateStableId("prt_dcp_text", deterministicSeed);
+
+  return {
+    id: partId,
+    sessionID: userInfo.sessionID,
+    messageID: userInfo.id,
+    type: "text" as const,
+    text: content,
+  };
+};
+
+export const appendToLastTextPart = (message: WithParts, injection: string): boolean => {
+  const parts = Array.isArray((message as any).parts) ? (message as any).parts : [];
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const part = parts[i];
+    if (part.type === "text") {
+      return appendToTextPart(part, injection);
+    }
+  }
+
+  return false;
+};
+
+export const appendToTextPart = (part: any, injection: string): boolean => {
+  if (typeof part.text !== "string") {
+    return false;
+  }
+
+  const normalizedInjection = injection.replace(/^\n+/, "");
+  if (!normalizedInjection.trim()) {
+    return false;
+  }
+
+  if (part.text.includes(normalizedInjection)) {
+    return true;
+  }
+
+  const baseText = part.text.replace(/\n*$/, "");
+  part.text = baseText.length > 0 ? `${baseText}\n\n${normalizedInjection}` : normalizedInjection;
+  return true;
+};
+
+export const appendToAllToolParts = (message: WithParts, tag: string): boolean => {
+  let injected = false;
+  const parts = Array.isArray((message as any).parts) ? (message as any).parts : [];
+  for (const part of parts) {
+    if (part.type === "tool") {
+      injected = appendToToolPart(part, tag) || injected;
+    }
+  }
+
+  return injected;
+};
+
+export const appendToToolPart = (part: any, tag: string): boolean => {
+  const state = part.state;
+  if (state?.status !== "completed" || typeof state.output !== "string") {
+    return false;
+  }
+
+  if (state.output.includes(tag)) {
+    return true;
+  }
+
+  state.output = `${state.output}${tag}`;
+  return true;
+};
+
+export const hasContent = (message: WithParts): boolean => {
+  const parts = Array.isArray((message as any).parts) ? (message as any).parts : [];
+  return parts.some(
+    (part: any) =>
+      (part.type === "text" && typeof part.text === "string" && part.text.trim().length > 0) ||
+      (part.type === "tool" && part.state?.status === "completed" && typeof part.state.output === "string"),
+  );
+};
+
+export function buildToolIdList(state: SessionState, messages: WithParts[]): string[] {
+  const typedState = state as any;
+  const toolIds: string[] = [];
+
+  for (const msg of messages) {
+    if (isMessageCompacted(state, msg)) {
+      continue;
+    }
+
+    const parts = Array.isArray((msg as any).parts) ? (msg as any).parts : [];
+    for (const part of parts) {
+      if (part.type === "tool" && part.callID && part.tool) {
+        toolIds.push(part.callID);
+      }
+    }
+  }
+
+  typedState.toolIdList = toolIds;
+  return toolIds;
+}
+
+export const replaceBlockIdsWithBlocked = (text: string): string => {
+  return text.replace(DCP_BLOCK_ID_TAG_REGEX, "$1BLOCKED$2");
+};
+
+export const stripHallucinationsFromString = (text: string): string => {
+  return text.replace(DCP_PAIRED_TAG_REGEX, "").replace(DCP_UNPAIRED_TAG_REGEX, "");
+};
+
+export const stripHallucinations = (messages: WithParts[]): void => {
+  for (const message of messages) {
+    const parts = Array.isArray((message as any).parts) ? (message as any).parts : [];
+    for (const part of parts) {
+      if (part.type === "text" && typeof part.text === "string") {
+        part.text = stripHallucinationsFromString(part.text);
+      }
+
+      if (part.type === "tool" && part.state?.status === "completed" && typeof part.state.output === "string") {
+        part.state.output = stripHallucinationsFromString(part.state.output);
+      }
+    }
+  }
+};

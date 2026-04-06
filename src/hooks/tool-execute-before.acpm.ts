@@ -35,7 +35,19 @@ function getFilePathForWrite(args: any): string | null {
     return null;
   }
 
-  return typeof args.file_path === 'string' ? args.file_path : null;
+  if (typeof args.file_path === 'string') {
+    return args.file_path;
+  }
+
+  if (typeof args.filePath === 'string') {
+    return args.filePath;
+  }
+
+  if (typeof args.path === 'string') {
+    return args.path;
+  }
+
+  return null;
 }
 
 function getFilePathForRead(input: ToolExecuteBeforeInput, args: any): string | null {

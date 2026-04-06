@@ -11,9 +11,34 @@ interface MessagePart {
   [key: string]: any;
 }
 
-interface MessageInfo {
+interface AssistantMessageInfo {
   id: string;
-  role: string;
+  role: 'assistant';
+  tokens: {
+    input: number;
+    output: number;
+    reasoning: number;
+    cache: {
+      read: number;
+      write: number;
+    };
+  };
+}
+
+interface UserMessageInfo {
+  id: string;
+  role: 'user';
+}
+
+type MessageInfo = AssistantMessageInfo | UserMessageInfo;
+
+interface FilePartSourceText {
+  value?: string;
+}
+
+interface FilePartSource {
+  path?: string;
+  text?: FilePartSourceText;
 }
 
 interface Message {
@@ -50,21 +75,18 @@ export class MetricsCollector {
       let messageTokens = 0;
 
       for (const part of message.parts) {
-        if (typeof part.content === 'string' && part.content.length > 0) {
-          messageTokens += estimateTokens(part.content);
-        }
-
         if (typeof part.text === 'string' && part.text.length > 0) {
           messageTokens += estimateTokens(part.text);
         }
 
         if (part.type === 'file') {
-          const path = part.source?.path ?? part.url;
+          const source = part.source as FilePartSource | undefined;
+          const path = source?.path ?? part.url;
           if (typeof path !== 'string' || path.length === 0) {
             continue;
           }
 
-          const tokenEstimate = estimateTokens(part.content);
+          const tokenEstimate = estimateTokens(source?.text?.value);
           const existing = files.get(path);
           if (existing) {
             existing.tokenEstimate += tokenEstimate;
@@ -108,7 +130,11 @@ export class MetricsCollector {
       }
 
       if (message.info.role === 'assistant') {
-        tokens.output += messageTokens;
+        tokens.input += message.info.tokens.input || 0;
+        tokens.output += message.info.tokens.output || 0;
+        tokens.reasoning += message.info.tokens.reasoning || 0;
+        tokens.cacheRead += message.info.tokens.cache?.read || 0;
+        tokens.cacheWrite += message.info.tokens.cache?.write || 0;
       } else {
         tokens.input += messageTokens;
       }

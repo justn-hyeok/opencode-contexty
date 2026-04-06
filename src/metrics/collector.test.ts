@@ -8,22 +8,65 @@ function createCollector() {
 }
 
 describe('MetricsCollector', () => {
-  it('estimates tokens from message parts', () => {
+  it('estimates user tokens from text parts', () => {
     const collector = createCollector();
 
     const snapshot = collector.collect([
       {
         info: { id: 'm1', role: 'user' },
-        parts: [{ type: 'text', content: 'aaaa' }],
+        parts: [{ type: 'text', text: 'aaaa' }],
       },
       {
-        info: { id: 'm2', role: 'assistant' },
-        parts: [{ type: 'text', content: 'bbbbbbbb' }],
+        info: {
+          id: 'm2',
+          role: 'assistant',
+          tokens: {
+            input: 100,
+            output: 50,
+            reasoning: 10,
+            cache: { read: 5, write: 2 },
+          },
+        },
+        parts: [{ type: 'text', text: 'bbbbbbbb' }],
       },
     ] as any);
 
     expect(snapshot.tokens.input).toBeGreaterThan(0);
-    expect(snapshot.tokens.output).toBeGreaterThan(0);
+    expect(snapshot.tokens).toEqual({
+      input: 101,
+      output: 50,
+      reasoning: 10,
+      cacheRead: 5,
+      cacheWrite: 2,
+    });
+  });
+
+  it('reads assistant tokens directly from message info', () => {
+    const collector = createCollector();
+
+    const snapshot = collector.collect([
+      {
+        info: {
+          id: 'm2',
+          role: 'assistant',
+          tokens: {
+            input: 100,
+            output: 50,
+            reasoning: 10,
+            cache: { read: 5, write: 2 },
+          },
+        },
+        parts: [{ type: 'text', text: 'response text' }],
+      },
+    ] as any);
+
+    expect(snapshot.tokens).toEqual({
+      input: 100,
+      output: 50,
+      reasoning: 10,
+      cacheRead: 5,
+      cacheWrite: 2,
+    });
   });
 
   it('deduplicates file metrics by path', () => {
@@ -31,16 +74,34 @@ describe('MetricsCollector', () => {
 
     const snapshot = collector.collect([
       {
-        info: { id: 'm1', role: 'assistant' },
+        info: {
+          id: 'm1',
+          role: 'assistant',
+          tokens: {
+            input: 0,
+            output: 0,
+            reasoning: 0,
+            cache: { read: 0, write: 0 },
+          },
+        },
         parts: [
-          { type: 'file', source: { path: 'src/a.ts' }, content: 'abcd' },
+          { type: 'file', source: { path: 'src/a.ts', text: { value: 'abcd' } } },
         ],
       },
       {
-        info: { id: 'm2', role: 'assistant' },
+        info: {
+          id: 'm2',
+          role: 'assistant',
+          tokens: {
+            input: 0,
+            output: 0,
+            reasoning: 0,
+            cache: { read: 0, write: 0 },
+          },
+        },
         parts: [
-          { type: 'file', source: { path: 'src/a.ts' }, content: 'abcdefgh' },
-          { type: 'file', source: { path: 'src/b.ts' }, content: 'abc' },
+          { type: 'file', source: { path: 'src/a.ts', text: { value: 'abcdefgh' } } },
+          { type: 'file', source: { path: 'src/b.ts', text: { value: 'abc' } } },
         ],
       },
     ] as any);
@@ -56,7 +117,16 @@ describe('MetricsCollector', () => {
 
     const snapshot = collector.collect([
       {
-        info: { id: 'm1', role: 'assistant' },
+        info: {
+          id: 'm1',
+          role: 'assistant',
+          tokens: {
+            input: 0,
+            output: 0,
+            reasoning: 0,
+            cache: { read: 0, write: 0 },
+          },
+        },
         parts: [
           { type: 'tool', tool: 'search', state: { status: 'completed' } },
           { type: 'tool', tool: 'search', state: { status: 'error' } },

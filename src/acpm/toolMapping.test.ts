@@ -32,7 +32,7 @@ describe('tool mapping', () => {
 
   test('returns tools for each category', () => {
     expect(getToolsForCategory('file-read')).toEqual(['read', 'glob', 'grep', 'list']);
-    expect(getToolsForCategory('file-write')).toEqual(['edit']);
+    expect(getToolsForCategory('file-write')).toEqual(['edit', 'write', 'apply_patch']);
     expect(getToolsForCategory('shell')).toEqual(['bash', 'task']);
     expect(getToolsForCategory('web')).toEqual(['webfetch', 'websearch']);
     expect(getToolsForCategory('lsp')).toEqual([

@@ -6,6 +6,8 @@ const toolToCategoryEntries = [
   ['grep', 'file-read'],
   ['list', 'file-read'],
   ['edit', 'file-write'],
+  ['write', 'file-write'],
+  ['apply_patch', 'file-write'],
   ['bash', 'shell'],
   ['task', 'shell'],
   ['webfetch', 'web'],
@@ -22,7 +24,7 @@ const toolToCategoryEntries = [
 
 const categoryToToolsEntries: Record<ToolCategory, readonly string[]> = {
   'file-read': ['read', 'glob', 'grep', 'list'],
-  'file-write': ['edit'],
+  'file-write': ['edit', 'write', 'apply_patch'],
   shell: ['bash', 'task'],
   web: ['webfetch', 'websearch'],
   lsp: [

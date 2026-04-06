@@ -319,6 +319,26 @@ export const ContextyPlugin: Plugin = async (pluginInput: PluginInput) => {
     },
     ...(dcpEnabled && dcpConfig
       ? {
+          config: async (opencodeConfig: any) => {
+            if (
+              dcpConfig.compress.permission !== 'deny' &&
+              opencodeConfig.permission?.compress === false
+            ) {
+              dcpLogger?.info('Compress permission is disabled by Opencode config.');
+            }
+
+            if (dcpConfig.compress.permission !== 'deny') {
+              const existing = opencodeConfig.experimental?.primary_tools ?? [];
+              opencodeConfig.experimental = {
+                ...opencodeConfig.experimental,
+                primary_tools: [...existing, 'compress'],
+              };
+            }
+          },
+        }
+      : {}),
+    ...(dcpEnabled && dcpConfig
+      ? {
           event: async (input: { event: unknown }) => {
             const sessionId = getDcpSessionIdFromEvent(input);
             if (!sessionId) {

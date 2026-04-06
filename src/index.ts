@@ -19,6 +19,9 @@ import { TLSModule } from './tls';
 import { createLogger as createDCPLogger } from './dcp/logger';
 import { compressMessage } from './dcp/compress/message';
 import { compressRange } from './dcp/compress/range';
+import type { CompressMessageToolArgs, CompressRangeToolArgs } from './dcp/compress/types';
+import type { ToolContext as DCPToolContext } from './dcp/compress/types';
+import type { WithParts } from './dcp/types';
 import { handleDcpCommand } from './dcp/commands';
 import { handleCompressionEvent } from './dcp/event-handler';
 import { renderSystemPrompt } from './dcp/prompts';
@@ -214,7 +217,7 @@ export const ContextyPlugin: Plugin = async (pluginInput: PluginInput) => {
 
     return tool({
       description: 'DCP compress conversation context into reusable blocks.',
-      args: dcpConfig.compress.mode === 'message' ? messageArgs : rangeArgs,
+      args: dcpConfig.compress.mode === 'message' ? messageArgs : rangeArgs as any,
       async execute(args, context) {
         const sessionId =
           getSessionIdFromValue(context)
@@ -226,27 +229,28 @@ export const ContextyPlugin: Plugin = async (pluginInput: PluginInput) => {
         }
 
         const state = await getDcpState(sessionId);
-        const toolContext = {
+        const ctx = context as Record<string, unknown>;
+        const toolContext: DCPToolContext = {
           sessionId,
           client,
           state,
           config: dcpConfig,
           logger: createDCPLogger(dcpConfig.debug),
-          messages: Array.isArray((context as { messages?: unknown }).messages)
-            ? (context as { messages: unknown[] }).messages as never
+          messages: Array.isArray(ctx.messages)
+            ? (ctx.messages as WithParts[])
             : undefined,
         };
 
         const callId =
-          typeof (context as { callID?: unknown; callId?: unknown }).callID === 'string'
-            ? (context as { callID?: string }).callID!
-            : typeof (context as { callID?: unknown; callId?: unknown }).callId === 'string'
-              ? (context as { callId?: string }).callId!
+          typeof ctx.callID === 'string'
+            ? (ctx.callID as string)
+            : typeof ctx.callId === 'string'
+              ? (ctx.callId as string)
               : `dcp-${Date.now()}`;
 
         const result = dcpConfig.compress.mode === 'message'
-          ? await compressMessage(toolContext, args as Parameters<typeof compressMessage>[1], callId)
-          : await compressRange(toolContext, args as Parameters<typeof compressRange>[1], callId);
+          ? await compressMessage(toolContext, args as unknown as CompressMessageToolArgs, callId)
+          : await compressRange(toolContext, args as unknown as CompressRangeToolArgs, callId);
 
         await persistDcpState(sessionId, state);
         return result;
@@ -256,6 +260,7 @@ export const ContextyPlugin: Plugin = async (pluginInput: PluginInput) => {
 
   const tlsCommandHook = createTLSCommandHook(tls, pluginInput);
   const acpmSystemTransformHook = createACPMSystemTransformHook(acpm);
+  const compressTool = dcpEnabled ? createCompressTool() : null;
 
   return {
     tool: {
@@ -265,7 +270,7 @@ export const ContextyPlugin: Plugin = async (pluginInput: PluginInput) => {
     },
     'chat.message': createAASMChatHook(aasm, client, directory),
     'command.execute.before': async (input, output) => {
-      await tlsCommandHook(input, output);
+      await tlsCommandHook?.(input, output);
 
       if (!dcpEnabled || !dcpConfig) {
         return;

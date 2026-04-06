@@ -95,7 +95,7 @@ describe("dcp message ids", () => {
 
   test("detects ignored user messages and last user message", () => {
     const ignored = makeMessage({ parts: [{ ignored: true }] as any[] });
-    const active = makeMessage({ info: { id: "raw-2" }, parts: [{ type: "text", text: "hi" }] as any[] });
+    const active = makeMessage({ info: { id: "raw-2", role: "user" }, parts: [{ type: "text", text: "hi" }] as any[] });
     const assistant = makeMessage({ info: { id: "raw-3", role: "assistant" } });
 
     expect(isIgnoredUserMessage(ignored)).toBe(true);
@@ -107,7 +107,7 @@ describe("dcp message ids", () => {
     const state = makeState();
     const messages = Array.from({ length: 5 }, (_, index) =>
       makeMessage({
-        info: { id: `raw-${index + 1}` },
+        info: { id: `raw-${index + 1}`, role: "user" },
         parts: [{ type: "text", text: `message ${index + 1}` }] as any[],
       }),
     );

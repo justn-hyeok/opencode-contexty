@@ -1,6 +1,7 @@
 import type { ACPMModule } from '../acpm';
 import { getToolCategory } from '../acpm/toolMapping';
 import type { ToolCategory } from '../acpm/types';
+import { sessionTracker } from '../core/sessionTracker';
 
 type ToolExecuteAfterInput = {
   tool: string;
@@ -77,6 +78,7 @@ function sanitizeOutput(output: ToolExecuteAfterOutput, reason: string): void {
 export function createToolExecuteAfterHook(acpm: ACPMModule) {
   return async (input: ToolExecuteAfterInput, output: ToolExecuteAfterOutput): Promise<void> => {
     try {
+      sessionTracker.setSessionId(input.sessionID);
       const category = getToolCategory(input.tool);
 
       if (!getToolPermissionEnabled(acpm, category)) {

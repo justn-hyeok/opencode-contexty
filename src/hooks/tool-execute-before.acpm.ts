@@ -2,6 +2,7 @@ import type { OpencodeClient } from '@opencode-ai/sdk';
 import type { ACPMModule } from '../acpm';
 import { getToolCategory } from '../acpm/toolMapping';
 import type { ToolCategory } from '../acpm/types';
+import { sessionTracker } from '../core/sessionTracker';
 
 type ToolExecuteBeforeInput = {
   tool: string;
@@ -97,6 +98,7 @@ async function showBlockedToast(client: OpencodeClient, title: string, message: 
 
 export function createToolExecuteBeforeHook(acpm: ACPMModule, client: OpencodeClient) {
   return async (input: ToolExecuteBeforeInput, _output: ToolExecuteBeforeOutput): Promise<void> => {
+    sessionTracker.setSessionId(input.sessionID);
     const category = getToolCategory(input.tool);
 
     if (!getToolPermissionEnabled(acpm, category)) {

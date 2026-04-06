@@ -6,6 +6,7 @@ import { acpmCounter, buildAcpmMetrics } from '../metrics/acpmCounter';
 import type { ACPMModule } from '../acpm';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { Logger } from '../utils';
 
 interface MessageInfo {
   id: string;
@@ -90,21 +91,13 @@ export function createHSCMMTransformHook(directory: string, acpm?: ACPMModule) {
     try {
       const metricsSessionId = sessionTracker.getSessionId();
       if (metricsSessionId && acpm) {
-        // DEBUG: dump first message info shape
         const first = output.messages[0];
         if (first) {
-          console.log('[transform] first message info keys:', Object.keys(first.info));
-          console.log('[transform] first message info.tokens:', (first.info as any).tokens);
-          console.log('[transform] first message parts count:', first.parts.length);
-          if (first.parts[0]) {
-            console.log('[transform] first part type:', first.parts[0].type, 'keys:', Object.keys(first.parts[0]).join(','));
-          }
+          Logger.debug('metrics debug — first message info keys: ' + Object.keys(first.info).join(', '), { tokens: (first.info as any).tokens, partsCount: first.parts.length, firstPartType: first.parts[0]?.type, firstPartKeys: first.parts[0] ? Object.keys(first.parts[0]).join(',') : undefined });
         }
         const last = output.messages[output.messages.length - 1];
         if (last) {
-          console.log('[transform] last message info keys:', Object.keys(last.info));
-          console.log('[transform] last message info.role:', last.info.role);
-          console.log('[transform] last message info.tokens:', (last.info as any).tokens);
+          Logger.debug('metrics debug — last message role: ' + last.info.role + ', tokens: ' + JSON.stringify((last.info as any).tokens), { infoKeys: Object.keys(last.info).join(',') });
         }
         const collector = new MetricsCollector(directory);
         const snapshot = collector.collect(output.messages, metricsSessionId);

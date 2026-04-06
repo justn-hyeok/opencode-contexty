@@ -8,34 +8,22 @@ function createCollector() {
 }
 
 describe('MetricsCollector', () => {
-  it('sums assistant token metrics', () => {
+  it('estimates tokens from message parts', () => {
     const collector = createCollector();
 
     const snapshot = collector.collect([
       {
-        info: { id: 'm1', role: 'assistant' },
-        tokens: { input: 10, output: 20, reasoning: 3, cache: { read: 4, write: 5 } },
-        parts: [],
+        info: { id: 'm1', role: 'user' },
+        parts: [{ type: 'text', content: 'aaaa' }],
       },
       {
         info: { id: 'm2', role: 'assistant' },
-        tokens: { input: 1, output: 2, reasoning: 3, cache: { read: 4, write: 5 } },
-        parts: [],
-      },
-      {
-        info: { id: 'm3', role: 'user' },
-        tokens: { input: 100, output: 100, reasoning: 100, cache: { read: 100, write: 100 } },
-        parts: [],
+        parts: [{ type: 'text', content: 'bbbbbbbb' }],
       },
     ] as any);
 
-    expect(snapshot.tokens).toEqual({
-      input: 11,
-      output: 22,
-      reasoning: 6,
-      cacheRead: 8,
-      cacheWrite: 10,
-    });
+    expect(snapshot.tokens.input).toBeGreaterThan(0);
+    expect(snapshot.tokens.output).toBeGreaterThan(0);
   });
 
   it('deduplicates file metrics by path', () => {

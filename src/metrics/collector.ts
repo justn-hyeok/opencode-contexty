@@ -19,19 +19,6 @@ interface MessageInfo {
 interface Message {
   info: MessageInfo;
   parts: MessagePart[];
-  tokens?: {
-    input?: number;
-    output?: number;
-    reasoning?: number;
-    cache?: {
-      read?: number;
-      write?: number;
-    };
-  };
-}
-
-function toNumber(value: unknown): number {
-  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
 function estimateTokens(content: unknown): number {
@@ -60,15 +47,17 @@ export class MetricsCollector {
     const tools = new Map<string, ToolMetrics>();
 
     for (const message of messages) {
-      if (message.info.role === 'assistant') {
-        tokens.input += toNumber(message.tokens?.input);
-        tokens.output += toNumber(message.tokens?.output);
-        tokens.reasoning += toNumber(message.tokens?.reasoning);
-        tokens.cacheRead += toNumber(message.tokens?.cache?.read);
-        tokens.cacheWrite += toNumber(message.tokens?.cache?.write);
-      }
+      let messageTokens = 0;
 
       for (const part of message.parts) {
+        if (typeof part.content === 'string' && part.content.length > 0) {
+          messageTokens += estimateTokens(part.content);
+        }
+
+        if (typeof part.text === 'string' && part.text.length > 0) {
+          messageTokens += estimateTokens(part.text);
+        }
+
         if (part.type === 'file') {
           const path = part.source?.path ?? part.url;
           if (typeof path !== 'string' || path.length === 0) {
@@ -116,6 +105,12 @@ export class MetricsCollector {
             });
           }
         }
+      }
+
+      if (message.info.role === 'assistant') {
+        tokens.output += messageTokens;
+      } else {
+        tokens.input += messageTokens;
       }
     }
 

@@ -82,4 +82,36 @@ describe('ACPMModule', () => {
     expect(module.getActivePreset()?.name).toBe('default');
     expect(module.getEvaluator().checkFolderAccess('/workspace', 'read').allowed).toBe(false);
   });
+
+  it('prefers session active preset and falls back to global active preset', async () => {
+    const storageDir = path.join(tempDir, '.contexty');
+    await fs.mkdir(path.join(storageDir, 'sessions', 'session-1'), { recursive: true });
+    await fs.writeFile(
+      path.join(storageDir, 'permissions.json'),
+      JSON.stringify(
+        {
+          version: 1,
+          activePreset: 'global',
+          presets: [createPreset('global'), createPreset('session')],
+        },
+        null,
+        2
+      )
+    );
+    await fs.writeFile(
+      path.join(storageDir, 'sessions', 'session-1', 'active-preset.json'),
+      JSON.stringify({ presetName: 'session' }, null, 2)
+    );
+
+    const module = new ACPMModule(tempDir);
+    module.setSessionId('session-1');
+    await module.loadSessionActivePreset();
+
+    expect(module.getActivePreset()?.name).toBe('session');
+
+    module.clearSessionId();
+    await module.loadSessionActivePreset();
+
+    expect(module.getActivePreset()?.name).toBe('global');
+  });
 });

@@ -16,15 +16,32 @@ export class ACPMModule {
   private evaluator: PermissionEvaluator = new PermissionEvaluator(null);
   private watcher: fs.FSWatcher | null = null;
   private activePresetName: string | null = null;
+  private currentSessionId: string | undefined;
 
   constructor(baseDir: string, defaultPresetName?: string) {
     this.storage = new PermissionStorage(path.resolve(baseDir));
     this.ready = this.initialize(defaultPresetName);
   }
 
+  setSessionId(sessionId: string): void {
+    this.currentSessionId = sessionId;
+    void this.loadSessionActivePreset();
+  }
+
+  clearSessionId(): void {
+    this.currentSessionId = undefined;
+    void this.reloadActivePreset();
+  }
+
   private async initialize(defaultPresetName?: string): Promise<void> {
     try {
       await this.storage.ensurePermissionsFile();
+
+      if (this.currentSessionId) {
+        await this.loadSessionActivePreset();
+        this.startWatching();
+        return;
+      }
 
       const permissionsFile = await this.storage.readPresets();
 
@@ -54,6 +71,11 @@ export class ACPMModule {
 
   private async reloadActivePreset(): Promise<void> {
     try {
+      if (this.currentSessionId) {
+        await this.loadSessionActivePreset();
+        return;
+      }
+
       const permissionsFile = await this.storage.readPresets();
       const targetName = this.activePresetName
         ?? permissionsFile.activePreset
@@ -88,7 +110,6 @@ export class ACPMModule {
   }
 
   private async loadPresetInternal(presetName: string): Promise<void> {
-    
     try {
       const permissionsFile = await this.storage.readPresets();
       const preset = permissionsFile.presets.find((entry) => entry.name === presetName) ?? null;
@@ -96,6 +117,37 @@ export class ACPMModule {
     } catch {
       this.setActivePreset(null);
     }
+  }
+
+  async loadSessionActivePreset(): Promise<void> {
+    try {
+      if (this.currentSessionId) {
+        const sessionPreset = await this.storage.readActivePreset(this.currentSessionId);
+        if (sessionPreset) {
+          await this.loadPresetInternal(sessionPreset);
+          return;
+        }
+      }
+
+      const permissionsFile = await this.storage.readPresets();
+      const presetName = permissionsFile.activePreset ?? permissionsFile.presets[0]?.name;
+
+      if (presetName) {
+        await this.loadPresetInternal(presetName);
+      }
+    } catch {
+      this.setActivePreset(null);
+    }
+  }
+
+  async setActivePresetName(presetName: string): Promise<void> {
+    await this.ensureReady();
+
+    if (this.currentSessionId) {
+      await this.storage.writeActivePreset(this.currentSessionId, presetName);
+    }
+
+    await this.loadPresetInternal(presetName);
   }
 
   getActivePreset(): Preset | null {

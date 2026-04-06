@@ -1,5 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { FileSystem } from '../utils';
+import { ensureSessionDir, sessionPath } from '../hscmm/storage';
 import { isValidPermissionsFile, type PermissionsFile } from './types';
 
 const permissionsFilePath = (baseDir: string): string => {
@@ -37,7 +39,25 @@ export class PermissionStorage {
   async writePresets(data: PermissionsFile): Promise<void> {
     await ensureDir(this.baseDir);
     const filePath = permissionsFilePath(this.baseDir);
-    await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
+    await FileSystem.writeJSONAtomic(filePath, data);
+  }
+
+  async readActivePreset(sessionId: string): Promise<string | undefined> {
+    const filePath = sessionPath(this.baseDir, sessionId, 'active-preset.json');
+
+    try {
+      const raw = await fs.readFile(filePath, 'utf8');
+      const parsed = JSON.parse(raw);
+      return typeof parsed.presetName === 'string' ? parsed.presetName : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  async writeActivePreset(sessionId: string, presetName: string): Promise<void> {
+    const filePath = sessionPath(this.baseDir, sessionId, 'active-preset.json');
+    await ensureSessionDir(this.baseDir, sessionId);
+    await FileSystem.writeJSONAtomic(filePath, { presetName });
   }
 
   async ensurePermissionsFile(): Promise<void> {

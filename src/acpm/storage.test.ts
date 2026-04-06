@@ -69,4 +69,23 @@ describe('PermissionStorage', () => {
 
     expect(content).toEqual({ version: 1, presets: [] });
   });
+
+  describe('Per-session active preset', () => {
+    it('writes and reads active preset round-trip', async () => {
+      await storage.writeActivePreset('session-1', 'default');
+
+      expect(storage.readActivePreset('session-1')).resolves.toBe('default');
+    });
+
+    it('returns undefined when no session preset file exists', async () => {
+      expect(storage.readActivePreset('missing-session')).resolves.toBeUndefined();
+    });
+
+    it('creates the session active preset file in the session directory', async () => {
+      await storage.writeActivePreset('session-2', 'alpha');
+
+      const filePath = path.join(tempDir, '.contexty', 'sessions', 'session-2', 'active-preset.json');
+      expect(fs.readFile(filePath, 'utf8')).resolves.toContain('"presetName": "alpha"');
+    });
+  });
 });

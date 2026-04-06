@@ -2,6 +2,38 @@ import type { OpencodeClient, UserMessage, Part } from '@opencode-ai/sdk';
 import type { AASMModule } from '../aasm';
 import { isAASMSubsession } from '../aasm/SubsessionHelper';
 import { sessionTracker } from '../core/sessionTracker';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+
+let lastTitleCacheTime = 0;
+const TITLE_CACHE_INTERVAL = 5 * 60 * 1000;
+
+async function cacheSessionTitles(client: OpencodeClient): Promise<void> {
+  const now = Date.now();
+  if (now - lastTitleCacheTime < TITLE_CACHE_INTERVAL) {
+    return;
+  }
+  lastTitleCacheTime = now;
+
+  try {
+    const result = await (client as any).experimental.session.list();
+    const sessions = result.data;
+    if (!Array.isArray(sessions)) {
+      return;
+    }
+
+    for (const session of sessions) {
+      if (!session?.id || !session?.title) {
+        continue;
+      }
+      const sessionDir = path.join(process.cwd(), '.contexty', 'sessions', session.id);
+      await fs.mkdir(sessionDir, { recursive: true });
+      const metaPath = path.join(sessionDir, 'meta.json');
+      await fs.writeFile(metaPath, JSON.stringify({ title: session.title }), 'utf-8');
+    }
+  } catch {
+  }
+}
 
 export function createAASMChatHook(aasm: AASMModule, client: OpencodeClient) {
   return async (
@@ -15,6 +47,7 @@ export function createAASMChatHook(aasm: AASMModule, client: OpencodeClient) {
     output: { message: UserMessage; parts: Part[] }
   ) => {
     sessionTracker.setSessionId(input.sessionID);
+    cacheSessionTitles(client);
 
     if (isAASMSubsession(input.sessionID)) {
       return;

@@ -8,6 +8,7 @@ import {
   createAASMChatHook,
   createHSCMMTransformHook,
   createPermissionAskHook,
+  createAASMReviewCommandHook,
   createSystemTransformHook as createACPMSystemTransformHook,
   createTLSCommandHook,
   createToolExecuteBeforeHook,
@@ -80,8 +81,9 @@ function getSessionIdFromValue(value: unknown): string | null {
     return null;
   }
 
-  const candidate = (value as { sessionID?: unknown; sessionId?: unknown }).sessionID
-    ?? (value as { sessionID?: unknown; sessionId?: unknown }).sessionId;
+  const candidate =
+    (value as { sessionID?: unknown; sessionId?: unknown }).sessionID ??
+    (value as { sessionID?: unknown; sessionId?: unknown }).sessionId;
 
   return typeof candidate === 'string' && candidate.trim().length > 0 ? candidate : null;
 }
@@ -99,15 +101,15 @@ function getDcpSessionIdFromEvent(input: { event: unknown }): string | null {
   } | null;
 
   return (
-    getSessionIdFromValue(event?.properties)
-    ?? getSessionIdFromValue(event)
-    ?? getSessionIdFromValue(event?.part)
-    ?? null
+    getSessionIdFromValue(event?.properties) ??
+    getSessionIdFromValue(event) ??
+    getSessionIdFromValue(event?.part) ??
+    null
   );
 }
 
 export const ContextyPlugin: Plugin = async (pluginInput: PluginInput) => {
-  const {client, directory} = pluginInput;
+  const { client, directory } = pluginInput;
 
   // Initialize Logger for server-side logging
   Logger.setClient(client);
@@ -120,8 +122,8 @@ export const ContextyPlugin: Plugin = async (pluginInput: PluginInput) => {
       confidenceThreshold: 0.7,
     },
     tls: {
-      enabled: true
-    }
+      enabled: true,
+    },
   };
 
   let config = defaultConfig;
@@ -133,7 +135,7 @@ export const ContextyPlugin: Plugin = async (pluginInput: PluginInput) => {
       const userConfig = JSON.parse(await fs.readFile(configPath, 'utf-8'));
       config = {
         ...defaultConfig,
-      aasm: { ...defaultConfig.aasm, ...userConfig.aasm },
+        aasm: { ...defaultConfig.aasm, ...userConfig.aasm },
         // Preserve other optional configs if present
         hscmm: userConfig.hscmm,
         acpm: userConfig.acpm,
@@ -152,7 +154,10 @@ export const ContextyPlugin: Plugin = async (pluginInput: PluginInput) => {
 
   const aasm = new AASMModule(config, client, configPath);
   const tls = new TLSModule(pluginInput, config, configPath);
-  const acpm = new ACPMModule(directory, (config as { acpm?: { defaultPreset?: string } }).acpm?.defaultPreset);
+  const acpm = new ACPMModule(
+    directory,
+    (config as { acpm?: { defaultPreset?: string } }).acpm?.defaultPreset
+  );
   const dcpConfig = config.dcp;
   const dcpEnabled = Boolean(dcpConfig?.enabled);
   const dcpStateCache = dcpEnabled ? new Map<string, SessionState>() : null;
@@ -217,12 +222,15 @@ export const ContextyPlugin: Plugin = async (pluginInput: PluginInput) => {
 
     return tool({
       description: 'DCP compress conversation context into reusable blocks.',
-      args: dcpConfig.compress.mode === 'message' ? messageArgs : rangeArgs as any,
+      args: dcpConfig.compress.mode === 'message' ? messageArgs : (rangeArgs as any),
       async execute(args, context) {
         const sessionId =
-          getSessionIdFromValue(context)
-          ?? getDcpSessionIdFromCommand({ sessionID: sessionTracker.getSessionId() ?? '', arguments: '' })
-          ?? sessionTracker.getSessionId();
+          getSessionIdFromValue(context) ??
+          getDcpSessionIdFromCommand({
+            sessionID: sessionTracker.getSessionId() ?? '',
+            arguments: '',
+          }) ??
+          sessionTracker.getSessionId();
 
         if (!sessionId) {
           throw new Error('DCP compress requires an active session.');
@@ -236,9 +244,7 @@ export const ContextyPlugin: Plugin = async (pluginInput: PluginInput) => {
           state,
           config: dcpConfig,
           logger: createDCPLogger(dcpConfig.debug),
-          messages: Array.isArray(ctx.messages)
-            ? (ctx.messages as WithParts[])
-            : undefined,
+          messages: Array.isArray(ctx.messages) ? (ctx.messages as WithParts[]) : undefined,
         };
 
         const callId =
@@ -248,9 +254,10 @@ export const ContextyPlugin: Plugin = async (pluginInput: PluginInput) => {
               ? (ctx.callId as string)
               : `dcp-${Date.now()}`;
 
-        const result = dcpConfig.compress.mode === 'message'
-          ? await compressMessage(toolContext, args as unknown as CompressMessageToolArgs, callId)
-          : await compressRange(toolContext, args as unknown as CompressRangeToolArgs, callId);
+        const result =
+          dcpConfig.compress.mode === 'message'
+            ? await compressMessage(toolContext, args as unknown as CompressMessageToolArgs, callId)
+            : await compressRange(toolContext, args as unknown as CompressRangeToolArgs, callId);
 
         await persistDcpState(sessionId, state);
         return result;
@@ -259,6 +266,7 @@ export const ContextyPlugin: Plugin = async (pluginInput: PluginInput) => {
   }
 
   const tlsCommandHook = createTLSCommandHook(tls, pluginInput);
+  const aasmReviewCommandHook = createAASMReviewCommandHook(aasm);
   const acpmSystemTransformHook = createACPMSystemTransformHook(acpm);
   const compressTool = dcpEnabled ? createCompressTool() : null;
 
@@ -271,6 +279,7 @@ export const ContextyPlugin: Plugin = async (pluginInput: PluginInput) => {
     'chat.message': createAASMChatHook(aasm, client, directory),
     'command.execute.before': async (input, output) => {
       await tlsCommandHook?.(input, output);
+      await aasmReviewCommandHook?.(input, output);
 
       if (!dcpEnabled || !dcpConfig) {
         return;
@@ -287,7 +296,12 @@ export const ContextyPlugin: Plugin = async (pluginInput: PluginInput) => {
       const state = await getDcpState(sessionId);
       const rawArgs = typeof input.arguments === 'string' ? input.arguments.trim() : '';
       const args = rawArgs.length > 0 ? rawArgs.split(/\s+/).filter(Boolean) : [];
-      const message = handleDcpCommand(args, state, dcpConfig, dcpLogger ?? createDCPLogger(dcpConfig.debug));
+      const message = handleDcpCommand(
+        args,
+        state,
+        dcpConfig,
+        dcpLogger ?? createDCPLogger(dcpConfig.debug)
+      );
 
       await persistDcpState(sessionId, state);
 

@@ -14,7 +14,7 @@ export function syncCompressionBlocks(state: SessionState, messages: WithParts[]
 
   for (const [blockId, block] of Array.from(messagesState.blocksById.entries())) {
     if (!hasMessageReference(block, messageIds)) {
-      messagesState.blocksById.delete(blockId);
+      block.active = false;
       messagesState.activeBlockIds.delete(blockId);
       if (messagesState.activeByAnchorMessageId.get(block.anchorMessageId) === blockId) {
         messagesState.activeByAnchorMessageId.delete(block.anchorMessageId);

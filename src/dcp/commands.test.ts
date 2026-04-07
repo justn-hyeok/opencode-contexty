@@ -1,6 +1,19 @@
 import { describe, expect, test } from "bun:test";
 
-import { handleDcpCommand } from "./commands";
+import {
+  handleHelpCommand,
+  handleStatsCommand,
+  handleContextCommand,
+  handleCompressCommand,
+  handleDecompressCommand,
+  handleRecompressCommand,
+  handleSweepCommand,
+  handleManualToggleCommand,
+  type CommandContext,
+  type BlockCommandContext,
+  type SweepContext,
+} from "./commands";
+import { syncCompressionBlocks } from "./messages/sync";
 import type { DCPConfig, SessionState } from "./types";
 import type { DCPLogger } from "./logger";
 
@@ -11,6 +24,13 @@ const makeLogger = (): DCPLogger =>
     warn() {},
     error() {},
   }) as unknown as DCPLogger;
+
+const noopClient: any = {
+  session: {
+    prompt: async (_opts?: any) => {},
+    messages: async () => ({ data: [] }),
+  },
+};
 
 const makeConfig = (): DCPConfig => ({
   enabled: true,
@@ -82,6 +102,15 @@ const makeState = (): SessionState => ({
   systemPromptTokens: undefined,
 });
 
+const makeCtx = (state: SessionState): CommandContext => ({
+  client: noopClient,
+  state,
+  config: makeConfig(),
+  logger: makeLogger(),
+  sessionId: "session-1",
+  messages: [],
+});
+
 const addMessage = (state: SessionState, id: string, compacted = false): void => {
   state.prune.messages.byMessageId.set(id, {
     tokenCount: 0,
@@ -120,95 +149,211 @@ const addBlock = (state: SessionState, blockId: number, active = true): void => 
   }
 };
 
-describe("handleDcpCommand", () => {
-  test("stats contains token info", () => {
+describe("DCP Commands", () => {
+  test("stats sends notification with token info", async () => {
     const state = makeState();
     addBlock(state, 1, true);
+    const ctx = makeCtx(state);
+    let captured: string | undefined;
+    const origPrompt = noopClient.session.prompt;
+    noopClient.session.prompt = async (opts: any) => {
+      captured = opts.body.parts[0].text;
+    };
 
-    const output = handleDcpCommand(["stats"], state, makeConfig(), makeLogger());
+    await handleStatsCommand(ctx);
 
-    expect(output).toContain("Total tokens pruned: 42");
-    expect(output).toContain("Active blocks: 1");
-    expect(output).toContain("Summary tokens: 9");
-    expect(output).toContain("Tool IDs pruned: call-1, call-2");
+    expect(captured).toContain("42");
+    expect(captured).toContain("1");
+    expect(captured).toContain("9");
+    expect(captured).toContain("2");
+
+    noopClient.session.prompt = origPrompt;
   });
 
-  test("context contains message and block counts", () => {
+  test("context sends notification with message and block counts", async () => {
     const state = makeState();
     addMessage(state, "msg-1", true);
     addMessage(state, "msg-2", false);
     addBlock(state, 1, true);
+    const ctx = makeCtx(state);
+    let captured: string | undefined;
+    const origPrompt = noopClient.session.prompt;
+    noopClient.session.prompt = async (opts: any) => {
+      captured = opts.body.parts[0].text;
+    };
 
-    const output = handleDcpCommand(["context"], state, makeConfig(), makeLogger());
+    await handleContextCommand(ctx);
 
-    expect(output).toContain("Total messages: 2");
-    expect(output).toContain("Compacted messages: 1");
-    expect(output).toContain("Active blocks: 1");
+    expect(captured).toContain("2");
+    expect(captured).toContain("1");
+
+    noopClient.session.prompt = origPrompt;
   });
 
-  test("help contains subcommand list", () => {
-    const output = handleDcpCommand(["help"], makeState(), makeConfig(), makeLogger());
+  test("help sends notification with subcommand list", async () => {
+    const ctx = makeCtx(makeState());
+    let captured: string | undefined;
+    const origPrompt = noopClient.session.prompt;
+    noopClient.session.prompt = async (opts: any) => {
+      captured = opts.body.parts[0].text;
+    };
 
-    expect(output).toContain("stats");
-    expect(output).toContain("context");
-    expect(output).toContain("compress");
-    expect(output).toContain("decompress");
-    expect(output).toContain("sweep");
-    expect(output).toContain("manual");
+    await handleHelpCommand(ctx);
+
+    expect(captured).toContain("stats");
+    expect(captured).toContain("context");
+    expect(captured).toContain("compress");
+    expect(captured).toContain("decompress");
+    expect(captured).toContain("sweep");
+    expect(captured).toContain("manual");
+
+    noopClient.session.prompt = origPrompt;
   });
 
-  test("unknown falls back to help", () => {
-    const output = handleDcpCommand(["unknown"], makeState(), makeConfig(), makeLogger());
+  test("decompress deactivates block by id", async () => {
+    const state = makeState();
+    addBlock(state, 1, true);
+    const ctx: BlockCommandContext = { ...makeCtx(state), args: ["1"] };
+    let captured: string | undefined;
+    const origPrompt = noopClient.session.prompt;
+    noopClient.session.prompt = async (opts: any) => {
+      captured = opts.body.parts[0].text;
+    };
 
-    expect(output).toContain("DCP commands:");
-    expect(output).toContain("stats");
+    await handleDecompressCommand(ctx);
+
+    expect(captured).toContain("1");
+    expect(captured).toContain("topic");
+    expect(state.prune.messages.blocksById.has(1)).toBe(true);
+    expect(state.prune.messages.blocksById.get(1)?.active).toBe(false);
+    expect(state.prune.messages.blocksById.get(1)?.deactivatedByUser).toBe(true);
+    expect(state.prune.messages.activeBlockIds.has(1)).toBe(false);
+
+    noopClient.session.prompt = origPrompt;
   });
 
-  test("decompress deactivates block by id", () => {
+  test("decompress accepts bN block refs", async () => {
+    const state = makeState();
+    addBlock(state, 2, true);
+    const ctx: BlockCommandContext = { ...makeCtx(state), args: ["b2"] };
+
+    await handleDecompressCommand(ctx);
+
+    expect(state.prune.messages.blocksById.get(2)?.active).toBe(false);
+    expect(state.prune.messages.blocksById.get(2)?.deactivatedByUser).toBe(true);
+    expect(state.prune.messages.activeBlockIds.has(2)).toBe(false);
+  });
+
+  test("recompress restores active state", async () => {
+    const state = makeState();
+    addBlock(state, 1, true);
+    state.prune.messages.blocksById.get(1)!.effectiveMessageIds = ["msg-1"];
+    state.prune.messages.byMessageId.set("msg-1", {
+      tokenCount: 0,
+      allBlockIds: [1],
+      activeBlockIds: [1],
+    });
+    const ctx: BlockCommandContext = { ...makeCtx(state), args: ["1"] };
+
+    await handleDecompressCommand(ctx);
+    state.prune.messages.byMessageId.set("msg-1", {
+      tokenCount: 0,
+      allBlockIds: [],
+      activeBlockIds: [],
+    });
+
+    await handleRecompressCommand(ctx);
+
+    expect(state.prune.messages.blocksById.get(1)?.active).toBe(true);
+    expect(state.prune.messages.activeBlockIds.has(1)).toBe(true);
+    expect(state.prune.messages.activeByAnchorMessageId.get("msg-1")).toBe(1);
+  });
+
+  test("recompress refuses non-user-decompressed block", async () => {
+    const state = makeState();
+    addBlock(state, 1, false);
+    const block = state.prune.messages.blocksById.get(1)!;
+    block.deactivatedByUser = false;
+    block.deactivatedByBlockId = 2;
+    const ctx: BlockCommandContext = { ...makeCtx(state), args: ["1"] };
+    let captured: string | undefined;
+    const origPrompt = noopClient.session.prompt;
+    noopClient.session.prompt = async (opts: any) => {
+      captured = opts.body.parts[0].text;
+    };
+
+    await handleRecompressCommand(ctx);
+
+    expect(captured).toContain("not user-decompressed");
+
+    noopClient.session.prompt = origPrompt;
+  });
+
+  test("block survives sync with empty messages", async () => {
     const state = makeState();
     addBlock(state, 1, true);
 
-    const output = handleDcpCommand(["decompress", "1"], state, makeConfig(), makeLogger());
+    syncCompressionBlocks(state, []);
 
-    expect(output).toContain("Deactivated block 1");
+    expect(state.prune.messages.blocksById.has(1)).toBe(true);
     expect(state.prune.messages.blocksById.get(1)?.active).toBe(false);
     expect(state.prune.messages.activeBlockIds.has(1)).toBe(false);
   });
 
-  test("compress sets pendingManualTrigger", () => {
+  test("compress sets pendingManualTrigger", async () => {
     const state = makeState();
+    const ctx = makeCtx(state);
 
-    const output = handleDcpCommand(["compress"], state, makeConfig(), makeLogger());
+    const prompt = await handleCompressCommand(ctx);
 
-    expect(output).toContain("Manual compression requested");
-    expect(state.pendingManualTrigger).toEqual({ sessionId: "session-1", prompt: "compress" });
+    expect(prompt).toContain("compress tool");
+    expect(state.pendingManualTrigger).not.toBeNull();
+    expect(state.pendingManualTrigger?.sessionId).toBe("session-1");
   });
 
-  test("no args shows help", () => {
-    const output = handleDcpCommand([], makeState(), makeConfig(), makeLogger());
-
-    expect(output).toContain("DCP commands:");
-    expect(output).toContain("manual");
-  });
-
-  test("manual toggles manual mode", () => {
+  test("manual toggles manual mode", async () => {
     const state = makeState();
+    const ctx = makeCtx(state);
+    const origPrompt = noopClient.session.prompt;
+    noopClient.session.prompt = async (opts: any) => {
+      void opts.body.parts[0].text;
+    };
 
-    const enabled = handleDcpCommand(["manual"], state, makeConfig(), makeLogger());
-    const disabled = handleDcpCommand(["manual"], state, makeConfig(), makeLogger());
+    await handleManualToggleCommand(ctx);
+    expect(state.manualMode).toBe("active");
 
-    expect(enabled).toContain("enabled");
-    expect(disabled).toContain("disabled");
+    await handleManualToggleCommand(ctx);
     expect(state.manualMode).toBe(false);
+
+    noopClient.session.prompt = origPrompt;
   });
 
-  test("sweep prunes known tools immediately", () => {
+  test("sweep prunes known tools", async () => {
     const state = makeState();
     state.prune.tools.delete("call-2");
+    const ctx: SweepContext = {
+      ...makeCtx(state),
+      args: [],
+      workingDirectory: "/tmp",
+      messages: [
+        { info: { id: "u1", role: "user" }, parts: [{ type: "text", text: "hello" }] },
+        {
+          info: { id: "a1", role: "assistant" },
+          parts: [{ type: "tool", callID: "call-2", tool: "bash", state: { status: "completed", output: "done" } }],
+        },
+      ],
+    };
+    let captured: string | undefined;
+    const origPrompt = noopClient.session.prompt;
+    noopClient.session.prompt = async (opts: any) => {
+      captured = opts.body.parts[0].text;
+    };
 
-    const output = handleDcpCommand(["sweep"], state, makeConfig(), makeLogger());
+    await handleSweepCommand(ctx);
 
-    expect(output).toContain("Sweep complete: 1 tools pruned");
+    expect(captured).toContain("1");
     expect(state.prune.tools.has("call-2")).toBe(true);
+
+    noopClient.session.prompt = origPrompt;
   });
 });

@@ -127,7 +127,6 @@ export function isMessageWithInfo(message: unknown): message is WithParts {
   }
 
   const info = (message as any).info;
-  const parts = (message as any).parts;
   if (!info || typeof info !== "object") {
     return false;
   }
@@ -135,13 +134,8 @@ export function isMessageWithInfo(message: unknown): message is WithParts {
   return (
     typeof info.id === "string" &&
     info.id.length > 0 &&
-    typeof info.sessionID === "string" &&
-    info.sessionID.length > 0 &&
-    (info.role === "user" || info.role === "assistant") &&
-    info.time &&
-    typeof info.time === "object" &&
-    typeof info.time.created === "number" &&
-    Array.isArray(parts)
+    typeof info.role === "string" &&
+    info.role.length > 0
   );
 }
 

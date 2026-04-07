@@ -8,6 +8,7 @@ import {
   createAASMChatHook,
   createHSCMMTransformHook,
   createPermissionAskHook,
+  createAASMReviewCommandHook,
   createSystemTransformHook as createACPMSystemTransformHook,
   createTLSCommandHook,
   createToolExecuteBeforeHook,
@@ -278,6 +279,7 @@ export const ContextyPlugin: Plugin = async (pluginInput: PluginInput) => {
   }
 
   const tlsCommandHook = createTLSCommandHook(tls, pluginInput);
+  const aasmReviewCommandHook = createAASMReviewCommandHook(aasm);
   const acpmSystemTransformHook = createACPMSystemTransformHook(acpm);
   const compressTool = dcpEnabled ? createCompressTool() : null;
 
@@ -290,6 +292,7 @@ export const ContextyPlugin: Plugin = async (pluginInput: PluginInput) => {
     'chat.message': createAASMChatHook(aasm, client, directory),
     'command.execute.before': async (input, output) => {
       await tlsCommandHook?.(input, output);
+      await aasmReviewCommandHook?.(input, output);
 
       if (!dcpEnabled || !dcpConfig) {
         return;

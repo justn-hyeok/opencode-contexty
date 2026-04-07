@@ -12,7 +12,16 @@
     "agent-status": {
       "description": "Check AASM status",
       "template": "Call the 'aasm' tool with argument { \"mode\": \"status\" }."
+    },
+    "agent-review": {
+      "description": "Generate AASM anti-pattern review report across sessions",
+      "template": "Immediately call the 'aasm' tool with argument { \"mode\": \"review\" }. If the user supplied a numeric argument, include it as \"limit\" (5-100). Do not ask planning questions."
+    },
+    "aasm": {
+      "description": "AASM command hub (status/active/passive/review)",
+      "template": "Call the 'aasm' tool. Map subcommands: active/passive/status/review to { \"mode\": \"...\" }. For review, pass \"limit\" if a numeric arg exists (5-100)."
     }
   },
+  "model": "github-copilot/gpt-4o",
   "$schema": "https://opencode.ai/config.json"
 }

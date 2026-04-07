@@ -65,9 +65,12 @@ export interface SubsessionConfig {
   model?: string;
 }
 
+import type { DCPConfig } from '../dcp/types';
+
 /**
  * Extension configuration
  */
+
 export interface ContextyConfig {
   /** HSCMM settings (Optional in this subset) */
   hscmm?: {
@@ -75,11 +78,15 @@ export interface ContextyConfig {
     autoCleanupThreshold: number;
     snapshotDir: string;
   };
+  acpm?: {
+    defaultPreset?: string;
+  };
   /** TLS settings (Optional) */
   tls: {
     enabled: boolean;
     model?: string;
   };
+  dcp?: DCPConfig;
   /** AASM settings */
   aasm: {
     /** Whether AASM is globally enabled */

@@ -11,6 +11,7 @@ import { join } from 'path';
 import { colors, log, info, error, success, banner } from './ui.js';
 import { ContextyConfig, DEFAULT_CONFIG, writeConfig } from './config.js';
 import { IDEType, installIDEExtension, getIDEDisplayName, isValidIDE } from './ide.js';
+import { runACPMWizard } from './acpm.js';
 import { registerPlugin } from './plugin.js';
 import { prompt, promptSelect, promptYesNo, promptNumber } from './prompt.js';
 
@@ -28,6 +29,12 @@ interface CliValues {
   model: string;
   help: boolean;
   version: boolean;
+}
+
+interface CliConfig extends ContextyConfig {
+  acpm?: {
+    defaultPreset: string;
+  };
 }
 
 const DEFAULT_CLI_VALUES: CliValues = {
@@ -107,7 +114,7 @@ ${colors.bold}Examples:${colors.reset}
 // Interactive Mode
 // ============================================================================
 
-async function runInteractive(): Promise<{ config: ContextyConfig; ide: IDEType }> {
+async function runInteractive(targetDir: string): Promise<{ config: CliConfig; ide: IDEType }> {
   banner();
   log(`${colors.dim}Let's configure your contexty.config.json${colors.reset}\n`);
 
@@ -125,6 +132,8 @@ async function runInteractive(): Promise<{ config: ContextyConfig; ide: IDEType 
     0
   );
   const ide = ideChoice.split(' - ')[0] as IDEType;
+
+  const acpmDefaultPreset = await runACPMWizard(targetDir);
 
   // 1. Enable AASM
   const enabled = await promptYesNo('Enable AASM (Active Agent-supervised Architecture)?', true);
@@ -175,10 +184,14 @@ async function runInteractive(): Promise<{ config: ContextyConfig; ide: IDEType 
     }
   }
 
-  const config: ContextyConfig = {
+  const config: CliConfig = {
     $schema: DEFAULT_CONFIG.$schema,
     aasm: { enabled, mode: aasmMode, enableLinting, confidenceThreshold },
   };
+
+  if (acpmDefaultPreset) {
+    config.acpm = { defaultPreset: acpmDefaultPreset };
+  }
 
   if (model) {
     config.aasm.model = model;
@@ -191,7 +204,7 @@ async function runInteractive(): Promise<{ config: ContextyConfig; ide: IDEType 
 // Non-Interactive Mode
 // ============================================================================
 
-function runNonInteractive(values: CliValues): ContextyConfig {
+function runNonInteractive(values: CliValues): CliConfig {
   const enabled = values['aasm-enabled'] !== 'false';
   const aasmMode = values['aasm-mode'] === 'active' ? 'active' : 'passive';
   const enableLinting = values['enable-linting'] !== 'false';
@@ -201,7 +214,7 @@ function runNonInteractive(values: CliValues): ContextyConfig {
   );
   const model = values.model || undefined;
 
-  const config: ContextyConfig = {
+  const config: CliConfig = {
     $schema: DEFAULT_CONFIG.$schema,
     aasm: { enabled, mode: aasmMode, enableLinting, confidenceThreshold },
   };
@@ -283,7 +296,7 @@ async function main(): Promise<void> {
       ide = 'vscode';
     }
   } else {
-    const result = await runInteractive();
+    const result = await runInteractive(targetDir);
     config = result.config;
     ide = result.ide;
   }

@@ -295,6 +295,10 @@ describe("DCP Commands", () => {
       anchorMessageId: "msg-1",
       compressMessageId: "msg-2",
       consumedBlockIds: [],
+      messageTokenById: new Map([
+        ["raw-1", 0],
+        ["raw-2", 0],
+      ]),
     });
     const ctx: BlockCommandContext = { ...makeCtx(state), args: [String(blockId)] };
 

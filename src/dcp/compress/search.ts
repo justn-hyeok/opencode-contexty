@@ -6,6 +6,7 @@ import type {
   RangeSelectionResolution,
   SearchContext,
 } from "./types";
+import { countAllMessageTokens } from "../token-utils";
 
 type BoundaryKind = "start" | "end";
 
@@ -112,6 +113,7 @@ export function resolveRange(
 
   const messageIds: string[] = [];
   const toolIds: string[] = [];
+  const messageTokenById = new Map<string, number>();
 
   for (let index = startBoundary.index; index <= endBoundary.index; index++) {
     const message = searchCtx.messages[index];
@@ -121,6 +123,9 @@ export function resolveRange(
 
     messageIds.push(message.info.id);
     toolIds.push(...getToolIds(message));
+    if (!messageTokenById.has(message.info.id)) {
+      messageTokenById.set(message.info.id, countAllMessageTokens(message));
+    }
   }
 
   messageIds.push(...startBoundary.messageIds, ...endBoundary.messageIds);
@@ -131,6 +136,7 @@ export function resolveRange(
     endId: parseBoundaryId(endId)?.ref ?? endId,
     messageIds: unique(messageIds),
     toolIds: unique(toolIds),
+    messageTokenById,
   };
 }
 
@@ -145,12 +151,16 @@ export function resolveMessage(
       throw new Error(`Invalid message ID: ${messageId}`);
     }
 
+    const messageTokenById = new Map<string, number>();
+    messageTokenById.set(message.info.id, countAllMessageTokens(message));
+
     return {
       messageId,
       topic: "",
       summary: "",
       messageIds: [message.info.id],
       toolIds: getToolIds(message),
+      messageTokenById,
     };
   }
 
@@ -165,11 +175,15 @@ export function resolveMessage(
     throw new Error(`Message ${parsed.ref} is not available in the current conversation context.`);
   }
 
+  const messageTokenById = new Map<string, number>();
+  messageTokenById.set(message.info.id, countAllMessageTokens(message));
+
   return {
     messageId: parsed.ref,
     topic: "",
     summary: "",
     messageIds: [message.info.id],
     toolIds: getToolIds(message),
+    messageTokenById,
   };
 }

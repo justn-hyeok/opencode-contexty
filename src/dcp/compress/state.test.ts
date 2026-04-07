@@ -84,6 +84,10 @@ describe("dcp compress state", () => {
       anchorMessageId: "raw-1",
       compressMessageId: "raw-3",
       consumedBlockIds: [],
+      messageTokenById: new Map([
+        ["raw-1", 10],
+        ["raw-2", 20],
+      ]),
     });
 
     const block = state.prune.messages.blocksById.get(blockId);
@@ -111,6 +115,7 @@ describe("dcp compress state", () => {
       anchorMessageId: "raw-1",
       compressMessageId: "raw-1",
       consumedBlockIds: [],
+      messageTokenById: new Map([["raw-1", 10]]),
     });
 
     deactivateBlock(state, blockId, "user");

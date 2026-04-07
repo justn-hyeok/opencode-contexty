@@ -6,6 +6,8 @@ import { applyCompressionState } from "./state";
 import { startCompressionTiming } from "./timing";
 import type { SearchContext, ToolContext, CompressRangeToolArgs } from "./types";
 import type { WithParts } from "../types";
+import type { NotificationEntry } from '../ui/notification';
+import { assignMessageRefs } from "../message-ids";
 
 function validateArgs(args: CompressRangeToolArgs): void {
   if (typeof args.topic !== "string" || args.topic.trim().length === 0) {
@@ -73,6 +75,7 @@ export async function compressRange(
   validateNonOverlapping(args.content);
 
   const messages = await getMessages(ctx);
+  assignMessageRefs(ctx.state, messages);
   const searchCtx: SearchContext = {
     state: ctx.state,
     config: ctx.config,
@@ -82,6 +85,7 @@ export async function compressRange(
 
   let totalCompressedMessages = 0;
   let totalBlocksCreated = 0;
+  const entries: NotificationEntry[] = [];
 
   for (const entry of args.content) {
     validateSummaryPlaceholders(entry.summary, []);
@@ -105,7 +109,18 @@ export async function compressRange(
       compressMessageId: resolution.messageIds[resolution.messageIds.length - 1] ?? entry.endId,
       compressCallId: callId,
       consumedBlockIds: [],
+      messageTokenById: resolution.messageTokenById,
     });
+
+    const block = ctx.state.prune.messages.blocksById.get(blockId);
+    if (block) {
+      entries.push({
+        blockId,
+        runId: block.runId,
+        summary: enrichedSummary,
+        summaryTokens: block.summaryTokens,
+      });
+    }
 
     totalBlocksCreated += 1;
     totalCompressedMessages += resolution.messageIds.length;
@@ -118,7 +133,7 @@ export async function compressRange(
     });
   }
 
-  finalizeSession(ctx.state, messages, ctx.config, ctx.logger);
+  await finalizeSession(ctx, messages, entries, args.topic);
 
   return `Compressed ${totalCompressedMessages} messages into ${totalBlocksCreated} block${totalBlocksCreated === 1 ? "" : "s"}.`;
 }

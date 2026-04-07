@@ -49,6 +49,7 @@ export interface RangeSelectionResolution {
   endId: string;
   messageIds: string[];
   toolIds: string[];
+  messageTokenById: Map<string, number>;
 }
 
 export interface MessageSelectionResolution {
@@ -57,6 +58,7 @@ export interface MessageSelectionResolution {
   summary: string;
   messageIds: string[];
   toolIds: string[];
+  messageTokenById: Map<string, number>;
 }
 
 export type SelectionResolution = RangeSelectionResolution | MessageSelectionResolution;
@@ -72,4 +74,5 @@ export interface CompressionApplyInput {
   compressMessageId: string;
   compressCallId?: string;
   consumedBlockIds: number[];
+  messageTokenById: Map<string, number>;
 }

@@ -144,7 +144,9 @@ export function applyCompressionState(
 
   for (const rawId of coveredRawMessageIds) {
     const existing = state.prune.messages.byMessageId.get(rawId);
+    const tokenCount = params.messageTokenById.get(rawId) ?? 0;
     if (existing) {
+      existing.tokenCount = Math.max(existing.tokenCount, tokenCount);
       if (!existing.allBlockIds.includes(blockId)) {
         existing.allBlockIds.push(blockId);
       }
@@ -155,7 +157,7 @@ export function applyCompressionState(
     }
 
     state.prune.messages.byMessageId.set(rawId, {
-      tokenCount: 0,
+      tokenCount,
       allBlockIds: [blockId],
       activeBlockIds: [blockId],
     });

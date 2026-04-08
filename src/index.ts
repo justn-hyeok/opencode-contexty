@@ -9,6 +9,7 @@ import {
   createHSCMMTransformHook,
   createPermissionAskHook,
   createAASMReviewCommandHook,
+  createBanCommandHook,
   createSystemTransformHook as createACPMSystemTransformHook,
   createTLSCommandHook,
   createToolExecuteBeforeHook,
@@ -280,6 +281,7 @@ export const ContextyPlugin: Plugin = async (pluginInput: PluginInput) => {
 
   const tlsCommandHook = createTLSCommandHook(tls, pluginInput);
   const aasmReviewCommandHook = createAASMReviewCommandHook(aasm);
+  const banCommandHook = createBanCommandHook(pluginInput);
   const acpmSystemTransformHook = createACPMSystemTransformHook(acpm);
   const compressTool = dcpEnabled ? createCompressTool() : null;
 
@@ -293,6 +295,7 @@ export const ContextyPlugin: Plugin = async (pluginInput: PluginInput) => {
     'command.execute.before': async (input, output) => {
       await tlsCommandHook?.(input, output);
       await aasmReviewCommandHook?.(input, output);
+      await banCommandHook?.(input, output);
 
       if (!dcpEnabled || !dcpConfig) {
         return;

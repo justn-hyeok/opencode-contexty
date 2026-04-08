@@ -20,6 +20,10 @@
     "aasm": {
       "description": "AASM command hub (status/active/passive/review)",
       "template": "Call the 'aasm' tool. Map subcommands: active/passive/status/review to { \"mode\": \"...\" }. For review, pass \"limit\" if a numeric arg exists (5-100)."
+    },
+    "ban": {
+      "description": "Blacklist tool parts matching a file or directory path to exclude them from future context loads",
+      "template": "Do nothing. This command is intercepted and handled by the plugin runtime before reaching you."
     }
   },
   "model": "github-copilot/gpt-4o",

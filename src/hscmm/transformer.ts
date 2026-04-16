@@ -14,6 +14,7 @@ import type { ACPMModule } from '../acpm';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { Logger } from '../utils';
+import { GLOBAL_CONTEXTY_CONFIG_PATH } from '../cli/config';
 import { createLogger as createDCPLogger } from '../dcp/logger';
 import { filterProcessableMessages, assignMessageRefs } from '../dcp/message-ids';
 import { injectCompressNudges, injectMessageIds } from '../dcp/messages/inject';
@@ -107,14 +108,17 @@ export async function resolveSessionId(messages: WithParts[]): Promise<string | 
 }
 
 async function loadDCPConfig(directory: string): Promise<DCPConfig | null> {
-  try {
-    const configPath = path.join(directory, 'contexty.config.json');
-    const raw = await fs.readFile(configPath, 'utf8');
-    const parsed = JSON.parse(raw) as ContextyConfig;
-    return parsed.dcp ?? null;
-  } catch {
-    return null;
+  const localConfigPath = path.join(directory, 'contexty.config.json');
+  for (const configPath of [localConfigPath, GLOBAL_CONTEXTY_CONFIG_PATH]) {
+    try {
+      const raw = await fs.readFile(configPath, 'utf8');
+      const parsed = JSON.parse(raw) as ContextyConfig;
+      if (parsed.dcp) return parsed.dcp;
+    } catch {
+      continue;
+    }
   }
+  return null;
 }
 
 function isValidToolPart(part: any): part is ToolPart {

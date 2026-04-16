@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import { Logger } from './utils';
 import { AASMModule } from './aasm';
+import { GLOBAL_CONTEXTY_CONFIG_PATH } from './cli/config';
 import {
   createAASMChatHook,
   createHSCMMTransformHook,
@@ -130,7 +131,7 @@ export const ContextyPlugin: Plugin = async (pluginInput: PluginInput) => {
   };
 
   let config = defaultConfig;
-  const configPath = path.join(directory, 'contexty.config.json');
+  const configPath = GLOBAL_CONTEXTY_CONFIG_PATH;
 
   try {
     try {

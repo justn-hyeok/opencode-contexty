@@ -2,7 +2,7 @@
  * Configuration types, defaults, and file operations
  */
 
-import { writeFileSync } from 'fs';
+import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 
 export interface ContextyConfig {
@@ -27,8 +27,18 @@ export const OPENCODE_CONFIG_PATH = join(
   'opencode.json'
 );
 
-export function writeConfig(config: ContextyConfig, targetDir: string): string {
-  const configPath = join(targetDir, 'contexty.config.json');
+export const GLOBAL_CONTEXTY_CONFIG_PATH = join(
+  process.env.HOME || process.env.USERPROFILE || '~',
+  '.config',
+  'opencode',
+  'contexty.config.json'
+);
+
+export function writeConfig(config: ContextyConfig): string {
+  const configDir = join(process.env.HOME || process.env.USERPROFILE || '~', '.config', 'opencode');
+  mkdirSync(configDir, { recursive: true });
+
+  const configPath = GLOBAL_CONTEXTY_CONFIG_PATH;
   const content = JSON.stringify(config, null, 2);
   writeFileSync(configPath, content + '\n', 'utf-8');
   return configPath;

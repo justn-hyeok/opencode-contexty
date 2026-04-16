@@ -7,13 +7,14 @@
 import { parseArgs } from 'util';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
+import { execSync } from 'child_process';
 
 import { colors, log, info, error, success, banner } from './ui.js';
-import { ContextyConfig, DEFAULT_CONFIG, writeConfig } from './config.js';
+import { ContextyConfig, DEFAULT_CONFIG, writeConfig, GLOBAL_CONTEXTY_CONFIG_PATH } from './config.js';
 import { IDEType, installIDEExtension, getIDEDisplayName, isValidIDE } from './ide.js';
-import { runACPMWizard } from './acpm.js';
 import { registerPlugin } from './plugin.js';
 import { prompt, promptSelect, promptYesNo } from './prompt.js';
+import { runConfigCommand } from './config-command.js';
 
 // ============================================================================
 // CLI Arguments
@@ -70,9 +71,13 @@ function parseCliArgs(): { values: CliValues; positionals: string[] } {
 
 function showHelp(): void {
   console.log(`
-${colors.bold}Usage:${colors.reset} npx @ttalkkak-lab/opencode-contexty init [options]
+${colors.bold}Usage:${colors.reset} npx @ttalkkak-lab/opencode-contexty <command> [options]
 
-${colors.bold}Options:${colors.reset}
+${colors.bold}Commands:${colors.reset}
+  init                          Initialize global config (~/.config/opencode/contexty.config.json)
+  config                        Configure project-local ACPM permissions
+
+${colors.bold}Init Options:${colors.reset}
   --no-tui                      Run in non-interactive mode
   --ide=<ide>                   IDE for extension: vscode (default) | vscode-insiders | vscodium | cursor | windsurf | none
   --aasm-mode=<mode>            Set AASM mode: passive (default) | active
@@ -81,7 +86,7 @@ ${colors.bold}Options:${colors.reset}
   -v, --version                 Show version
 
 ${colors.bold}Examples:${colors.reset}
-  ${colors.dim}# Interactive mode${colors.reset}
+  ${colors.dim}# Interactive init${colors.reset}
   npx @ttalkkak-lab/opencode-contexty init
 
   ${colors.dim}# Non-interactive with defaults (installs VSCode extension)${colors.reset}
@@ -95,6 +100,9 @@ ${colors.bold}Examples:${colors.reset}
 
   ${colors.dim}# Active mode with custom model${colors.reset}
   npx @ttalkkak-lab/opencode-contexty init --no-tui --aasm-mode=active --model=google/antigravity-gemini-3-flash
+
+  ${colors.dim}# Configure project-local ACPM permissions${colors.reset}
+  npx @ttalkkak-lab/opencode-contexty config
 `);
 }
 
@@ -102,9 +110,10 @@ ${colors.bold}Examples:${colors.reset}
 // Interactive Mode
 // ============================================================================
 
-async function runInteractive(targetDir: string): Promise<{ config: CliConfig; ide: IDEType }> {
+async function runInteractive(): Promise<{ config: CliConfig; ide: IDEType }> {
   banner();
-  log(`${colors.dim}Let's configure your contexty.config.json${colors.reset}\n`);
+  log(`${colors.dim}Let's configure your global contexty.config.json${colors.reset}`);
+  log(`${colors.dim}Config will be saved to ~/.config/opencode/${colors.reset}\n`);
 
   // 0. IDE Selection
   const ideChoice = await promptSelect(
@@ -120,8 +129,6 @@ async function runInteractive(targetDir: string): Promise<{ config: CliConfig; i
     0
   );
   const ide = ideChoice.split(' - ')[0] as IDEType;
-
-  const acpmDefaultPreset = await runACPMWizard(targetDir);
 
   // 1. AASM Mode
   const modeChoice = await promptSelect(
@@ -155,10 +162,6 @@ async function runInteractive(targetDir: string): Promise<{ config: CliConfig; i
     aasm: { mode: aasmMode },
   };
 
-  if (acpmDefaultPreset) {
-    config.acpm = { defaultPreset: acpmDefaultPreset };
-  }
-
   if (model) {
     config.aasm.model = model;
   }
@@ -187,6 +190,28 @@ function runNonInteractive(values: CliValues): CliConfig {
 }
 
 // ============================================================================
+// Star Prompt
+// ============================================================================
+
+async function askForStar(): Promise<void> {
+  const star = await promptYesNo(
+    'Would you like to star us on GitHub? ⭐',
+    true
+  );
+
+  if (star) {
+    const repoUrl = 'https://github.com/ttalkkak-lab/opencode-contexty';
+    try {
+      const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
+      execSync(`${cmd} ${repoUrl}`, { stdio: 'ignore' });
+      success('Opening GitHub in your browser — thanks for the support! 🙏');
+    } catch {
+      log(`  ${colors.dim}${repoUrl}${colors.reset}`);
+    }
+  }
+}
+
+// ============================================================================
 // Main
 // ============================================================================
 
@@ -210,8 +235,14 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
-  // Require 'init' command
+  // Route commands
   const command = positionals[0];
+
+  if (command === 'config') {
+    await runConfigCommand();
+    process.exit(0);
+  }
+
   if (command !== 'init') {
     if (command) {
       error(`Unknown command: ${command}`);
@@ -220,13 +251,12 @@ async function main(): Promise<void> {
     process.exit(command ? 1 : 0);
   }
 
-  // Check if config already exists
-  const targetDir = process.cwd();
-  const existingConfig = join(targetDir, 'contexty.config.json');
+  // === init command ===
 
-  if (existsSync(existingConfig)) {
+  // Check if config already exists (global)
+  if (existsSync(GLOBAL_CONTEXTY_CONFIG_PATH)) {
     log(
-      `${colors.yellow}⚠${colors.reset} contexty.config.json already exists at ${existingConfig}`
+      `${colors.yellow}⚠${colors.reset} contexty.config.json already exists at ${GLOBAL_CONTEXTY_CONFIG_PATH}`
     );
     if (!values['no-tui']) {
       const overwrite = await promptYesNo('Do you want to overwrite it?', false);
@@ -256,13 +286,13 @@ async function main(): Promise<void> {
       ide = 'vscode';
     }
   } else {
-    const result = await runInteractive(targetDir);
+    const result = await runInteractive();
     config = result.config;
     ide = result.ide;
   }
 
-  // Write config
-  const configPath = writeConfig(config, targetDir);
+  // Write config (global)
+  const configPath = writeConfig(config);
   success(`Created ${configPath}`);
 
   // Register plugin
@@ -282,8 +312,13 @@ ${colors.bold}Configuration:${colors.reset}
   Model:         ${config.aasm.model || '(session default)'}
   IDE Extension: ${ideInfo}
 
-${colors.dim}Run 'opencode' to start using the plugin.${colors.reset}
+${colors.dim}Use 'npx @ttalkkak-lab/opencode-contexty config' to set up project-local ACPM permissions.${colors.reset}
 `);
+
+  // Ask for star
+  if (!values['no-tui']) {
+    await askForStar();
+  }
 }
 
 main().catch((e) => {

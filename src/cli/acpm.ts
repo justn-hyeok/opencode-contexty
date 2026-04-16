@@ -1,6 +1,6 @@
 import path from 'path';
-import { PermissionStorage } from '../acpm/storage.js';
-import type { FolderAccess, FolderPermission, Preset, ToolCategory, ToolPermission } from '../acpm/types.js';
+import { PermissionStorage } from '../acpm/storage';
+import type { FolderAccess, FolderPermission, Preset, ToolCategory, ToolPermission } from '../acpm/types';
 import { prompt as promptInput, promptSelect, promptYesNo } from './prompt.js';
 
 const TOOL_CATEGORIES: ToolCategory[] = ['file-read', 'file-write', 'shell', 'web', 'lsp', 'mcp'];

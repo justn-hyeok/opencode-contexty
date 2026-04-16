@@ -14,6 +14,8 @@
 
 <div align="center">
 
+<img width="1920" height="1080" alt="OpenCode에 컨텍스트 엔지니어링을 더하는 플러그인 — 컨텍스트 시각화, 아키텍처 감독, 접근 권한 관리를 하나로." src="https://github.com/user-attachments/assets/a1dd5fdf-8e09-4ac7-8811-ae8463d81884" />
+
 # opencode-contexty
 
 ### OpenCode를 위한 컨텍스트 엔지니어링
